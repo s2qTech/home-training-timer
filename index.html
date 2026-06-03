@@ -1,0 +1,1330 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>居家力量训练计时器</title>
+  <meta name="theme-color" content="#1a73e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="训练计时器">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --card: #ffffff;
+      --ink: #202124;
+      --muted: #5f6368;
+      --line: #dadce0;
+      --green: #188038;
+      --green-2: #34a853;
+      --green-soft: #e6f4ea;
+      --blue: #1a73e8;
+      --blue-soft: #e8f0fe;
+      --orange: #f29900;
+      --orange-soft: #fef7e0;
+      --red: #d93025;
+      --red-soft: #fce8e6;
+      --shadow: 0 1px 2px rgba(60, 64, 67, .18), 0 8px 24px rgba(60, 64, 67, .08);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(135deg, rgba(26, 115, 232, .06), transparent 34%),
+        linear-gradient(180deg, #ffffff, var(--bg));
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    button, select {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1160px, calc(100% - 24px));
+      margin: 16px auto 28px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 352px);
+      gap: 16px;
+    }
+
+    .app > *,
+    .main,
+    .side,
+    .main-card,
+    .hero {
+      min-width: 0;
+    }
+
+    .hero,
+    .side,
+    .main-card,
+    .controls,
+    .settings,
+    .queue {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      grid-column: 1 / -1;
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      color: var(--ink);
+      font-size: clamp(24px, 4vw, 36px);
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 146px;
+      min-height: 46px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-weight: 800;
+      text-align: center;
+      border: 1px solid #d2e3fc;
+      white-space: nowrap;
+    }
+
+    .main {
+      display: grid;
+      gap: 14px;
+    }
+
+    .main-card {
+      min-height: 520px;
+      padding: 22px;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 18px;
+      overflow: hidden;
+    }
+
+    .step-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .phase {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .phase.work { background: var(--green-soft); color: var(--green); }
+    .phase.rest { background: var(--orange-soft); color: var(--orange); }
+    .phase.stop { background: var(--red-soft); color: var(--red); }
+
+    .count {
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .timer {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .ring {
+      --p: 0deg;
+      --ring-size: 178px;
+      --inner-size: 132px;
+      width: 178px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        conic-gradient(var(--blue) var(--p), #e8eaed 0deg),
+        var(--card);
+      display: grid;
+      place-items: center;
+      box-shadow: inset 0 0 0 1px rgba(60, 64, 67, .10), 0 6px 16px rgba(60, 64, 67, .10);
+    }
+
+    .ring-inner {
+      width: var(--inner-size);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--card);
+      display: grid;
+      place-items: center;
+      box-shadow: inset 0 0 0 1px #eef0f2;
+    }
+
+    .time {
+      font-size: clamp(30px, calc(var(--ring-size) * .24), 46px);
+      font-weight: 900;
+      letter-spacing: 0;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .step-name {
+      margin: 0 0 8px;
+      font-size: clamp(30px, 6vw, 48px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .step-dose {
+      margin: 0;
+      color: var(--blue);
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .detail {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .detail-box {
+      padding: 14px 15px;
+      border-radius: var(--radius);
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .detail-box h3 {
+      margin: 0 0 8px;
+      color: #294734;
+      font-size: 18px;
+    }
+
+    .detail-box ul {
+      margin: 0;
+      padding-left: 1.2em;
+    }
+
+    .detail-box li {
+      margin: 6px 0;
+    }
+
+    .breath {
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+      color: #174ea6;
+      font-weight: 800;
+    }
+
+    .next {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .controls {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 1fr 1fr;
+      gap: 10px;
+      box-shadow: none;
+    }
+
+    .btn {
+      min-height: 52px;
+      border: 0;
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 900;
+      border: 1px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(60, 64, 67, .16);
+    }
+
+    .btn.primary {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .btn.warn {
+      background: var(--orange-soft);
+      color: var(--orange);
+      border-color: #fde293;
+    }
+
+    .btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 2.4;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .side {
+      padding: 16px;
+      align-self: start;
+      display: grid;
+      gap: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .settings {
+      padding: 0;
+      box-shadow: none;
+      background: transparent;
+      border: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .setting {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    select {
+      width: 100%;
+      min-width: 0;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 800;
+      text-overflow: ellipsis;
+    }
+
+    .toggles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--blue);
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric {
+      padding: 10px;
+      border-radius: var(--radius);
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .metric b {
+      display: block;
+      color: var(--blue);
+      font-size: 21px;
+      line-height: 1.1;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .queue {
+      padding: 12px;
+      box-shadow: none;
+      max-height: 486px;
+      overflow: auto;
+      background: #fff;
+    }
+
+    .plan-note {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .plan-note b {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    .queue h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      color: var(--green);
+    }
+
+    .queue-item {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      padding: 9px 8px;
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      border: 1px solid transparent;
+    }
+
+    .queue-item.active {
+      background: var(--blue-soft);
+      color: var(--ink);
+      border-color: #d2e3fc;
+      font-weight: 900;
+    }
+
+    .queue-item.done {
+      opacity: .48;
+    }
+
+    .queue-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #eef4ef;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .queue-item span:nth-child(2) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .queue-time {
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .footer-note {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 920px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+      .side {
+        order: 3;
+      }
+      .detail {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        background: #fff;
+      }
+
+      .app {
+        width: 100%;
+        margin: 0;
+        padding: 8px 8px 92px;
+        gap: 8px;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 12px;
+        border-radius: var(--radius);
+        box-shadow: none;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      .hero p {
+        font-size: 13px;
+      }
+
+      .status-pill {
+        min-width: 0;
+        min-height: 34px;
+        justify-content: flex-start;
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+
+      .main {
+        gap: 8px;
+      }
+
+      .main-card {
+        min-height: auto;
+        padding: 12px;
+        border-radius: var(--radius);
+        gap: 12px;
+        box-shadow: none;
+      }
+
+      .step-top {
+        align-items: center;
+      }
+
+      .phase {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+
+      .count {
+        font-size: 12px;
+      }
+
+      .timer {
+        grid-template-columns: 112px minmax(0, 1fr);
+        justify-items: stretch;
+        gap: 12px;
+      }
+
+      .ring {
+        --ring-size: 112px;
+        --inner-size: 88px;
+        width: var(--ring-size);
+      }
+
+      .ring-inner {
+        width: var(--inner-size);
+      }
+
+      .time {
+        font-size: 27px;
+      }
+
+      .step-name {
+        text-align: left;
+        font-size: clamp(25px, 8vw, 34px);
+        overflow-wrap: anywhere;
+      }
+
+      .step-dose {
+        text-align: left;
+        font-size: 16px;
+      }
+
+      .detail {
+        gap: 8px;
+      }
+
+      .detail-box {
+        padding: 10px 11px;
+      }
+
+      .detail-box h3 {
+        font-size: 15px;
+      }
+
+      .detail-box li {
+        margin: 4px 0;
+        font-size: 14px;
+      }
+
+      .breath {
+        padding: 10px;
+        font-size: 14px;
+      }
+
+      .next {
+        font-size: 12px;
+      }
+
+      .controls {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        z-index: 20;
+        grid-template-columns: 1fr 1fr;
+        border-radius: var(--radius);
+        padding: 8px;
+        box-shadow: 0 8px 24px rgba(60, 64, 67, .22);
+      }
+
+      .btn {
+        min-height: 44px;
+        font-size: 14px;
+      }
+
+      .controls .primary {
+        grid-column: 1 / -1;
+      }
+
+      .toggles,
+      .summary {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .side {
+        padding: 12px;
+        box-shadow: none;
+      }
+
+      .queue {
+        max-height: 240px;
+      }
+
+      .plan-note {
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .timer {
+        grid-template-columns: 96px minmax(0, 1fr);
+      }
+
+      .ring {
+        --ring-size: 96px;
+        --inner-size: 76px;
+        width: var(--ring-size);
+      }
+
+      .ring-inner {
+        width: var(--inner-size);
+      }
+
+      .time {
+        font-size: 23px;
+      }
+
+      .step-name {
+        font-size: 24px;
+      }
+
+      .toggles,
+      .summary {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div>
+        <h1>居家力量训练计时器</h1>
+        <p>按动作自动切换，休息自动插入。动作走形就暂停或跳过，不用补课。</p>
+      </div>
+      <div class="status-pill" id="status">未开始</div>
+    </header>
+
+    <main class="main">
+      <section class="main-card" aria-live="polite">
+        <div class="step-top">
+          <div class="phase" id="phase">准备</div>
+          <div class="count" id="count">0 / 0</div>
+        </div>
+
+        <div class="timer">
+          <div class="ring" id="ring">
+            <div class="ring-inner">
+              <div class="time" id="time">00:00</div>
+            </div>
+          </div>
+          <div>
+            <h2 class="step-name" id="stepName">选择版本后点开始</h2>
+            <p class="step-dose" id="stepDose">今天以动作质量为准，不追心率。</p>
+          </div>
+        </div>
+
+        <div class="detail">
+          <div class="detail-box">
+            <h3>动作要领</h3>
+            <ul id="cues">
+              <li>标准版默认 2 轮；小腿不适时选小腿保护版。</li>
+              <li>第二轮动作明显走形，就用跳过或暂停结束。</li>
+            </ul>
+          </div>
+          <div class="detail-box">
+            <h3>注意事项</h3>
+            <ul id="warnings">
+              <li>腰、颈、手腕、小腿旧伤都以不疼为第一标准。</li>
+              <li>刺痛、麻木、跛行、胸闷或头晕，立即停止。</li>
+            </ul>
+          </div>
+        </div>
+
+        <div>
+          <div class="breath" id="breath">呼吸：保持顺畅，不憋气。</div>
+          <div class="next" id="next">下一项：暂无</div>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="计时控制">
+        <button class="btn primary" id="startBtn" type="button" title="开始或暂停">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path id="startIcon" d="M8 5v14l11-7z"></path></svg>
+          <span id="startText">开始</span>
+        </button>
+        <button class="btn" id="prevBtn" type="button" title="上一个动作">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 20L9 12l10-8v16z"></path><path d="M5 19V5"></path></svg>
+          上一个
+        </button>
+        <button class="btn" id="nextBtn" type="button" title="下一个动作">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l10 8-10 8V4z"></path><path d="M19 5v14"></path></svg>
+          下一个
+        </button>
+        <button class="btn warn" id="resetBtn" type="button" title="重置">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path></svg>
+          重置
+        </button>
+      </section>
+    </main>
+
+    <aside class="side">
+      <section class="settings">
+        <div class="setting">
+          <label for="preset">训练版本</label>
+          <select id="preset">
+            <option value="standard">标准版 1.6：核心胸肩加强</option>
+            <option value="calfSafe">小腿保护版：少侧步/少提踵</option>
+            <option value="low">低配版：1轮力量 + 拉伸</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label for="rest">动作间休息</label>
+          <select id="rest">
+            <option value="30" selected>30 秒（默认）</option>
+            <option value="45">45 秒（动作走形时）</option>
+            <option value="60">60 秒（恢复日）</option>
+          </select>
+        </div>
+        <div class="toggles">
+          <label class="toggle"><input id="voice" type="checkbox" checked> 语音提示</label>
+          <label class="toggle"><input id="beep" type="checkbox" checked> 提示音</label>
+        </div>
+      </section>
+
+      <section class="summary">
+        <div class="metric"><b id="totalTime">--</b><span>预计总时长</span></div>
+        <div class="metric"><b id="workCount">--</b><span>动作数量</span></div>
+      </section>
+
+      <section class="plan-note">
+        <b>本版调整</b>
+        肚子和胸部不能定点减脂，所以本版改为加强核心、胸肩和上背。贴墙静蹲先不放默认流程；它主要练大腿前侧，腿疲劳或小腿旧伤不适时收益不如风险划算。
+      </section>
+
+      <section class="queue">
+        <h2>流程</h2>
+        <div id="queue"></div>
+      </section>
+    </aside>
+
+    <div class="footer-note">建议手机保持亮屏或把屏幕常亮时间调长。浏览器可能需要第一次点击后才允许语音和提示音。</div>
+  </div>
+
+  <script>
+    const actionInfo = {
+      slowWalk: {
+        name: "原地慢走",
+        dose: "2 分钟",
+        cues: ["小步、轻落地，手臂自然摆。", "身体慢慢热起来，不追出汗。"],
+        warnings: ["不要高抬腿。", "左小腿不适时更要轻。"],
+        breath: "呼吸：自然呼吸，能轻松说话。"
+      },
+      marchFast: {
+        name: "原地小步快走",
+        dose: "60 秒",
+        cues: ["小步、轻落地，脚步比热身稍快。", "手臂自然前后摆，不跑不跳。", "让心率稍微上来即可。"],
+        warnings: ["左小腿不适时跳过。", "不要高抬腿，不要跺脚。"],
+        breath: "呼吸：变深可以，不能喘乱。"
+      },
+      shoulderCircles: {
+        name: "肩膀绕圈",
+        dose: "前后各 10 圈",
+        cues: ["肩膀向前绕，再向后绕。", "动作慢，肩放松。"],
+        warnings: ["不要耸肩。", "脖子紧就把幅度减小。"],
+        breath: "呼吸：慢慢呼吸，别憋。"
+      },
+      scapula: {
+        name: "肩胛后缩",
+        dose: "10 次，每次停 2 秒",
+        cues: ["站直，两个肩胛骨轻轻往后夹。", "夹住 2 秒，再完全放松。"],
+        warnings: ["不是挺腰。", "不要把肩膀耸到耳朵旁。"],
+        breath: "呼吸：夹肩胛时呼气，放松时吸气。"
+      },
+      chinTuck: {
+        name: "下巴回收",
+        dose: "8 次，每次停 2 秒",
+        cues: ["眼睛看前方，下巴轻轻往后收。", "像做一点双下巴，后颈变长。"],
+        warnings: ["不要低头。", "不要仰头。"],
+        breath: "呼吸：动作很小，保持顺。"
+      },
+      thoracicTurn: {
+        name: "胸椎小幅旋转",
+        dose: "左右各 8 次",
+        cues: ["双手抱胸，上背小幅左右转。", "骨盆尽量稳定，幅度小一点。"],
+        warnings: ["不要快速扭腰。", "腰不舒服就跳过。"],
+        breath: "呼吸：转开时呼气，回正时吸气。"
+      },
+      ankle: {
+        name: "踝关节绕圈",
+        dose: "顺逆各 10 圈/侧",
+        cues: ["扶墙，一只脚离地，用脚尖慢慢画圆。", "只动脚踝，不甩整条腿。"],
+        warnings: ["旧伤侧小幅度。", "有刺痛就停。"],
+        breath: "呼吸：自然呼吸。"
+      },
+      hipHingeWarm: {
+        name: "髋部折叠练习",
+        dose: "8 次",
+        cues: ["膝盖微弯，屁股往正后方推。", "背保持直，大腿后侧有点拉紧就回来。"],
+        warnings: ["不是深蹲。", "腰不舒服就减少幅度。"],
+        breath: "呼吸：往后折时吸气，站回时呼气。"
+      },
+      chairSit: {
+        name: "椅子坐站",
+        dose: "10-12 次",
+        cues: ["屁股往后下方找椅子。", "可以轻轻坐实 0.5 秒再起来。", "脚跟踩实，膝盖朝脚尖方向。"],
+        warnings: ["不要砸到椅子上。", "不要靠椅背休息。", "膝盖不要内扣。"],
+        breath: "呼吸：坐下吸气，站起呼气。"
+      },
+      hipHinge: {
+        name: "髋部折叠",
+        dose: "8 次",
+        cues: ["屁股往正后方推，上身自然前倾。", "膝盖只微弯，小腿尽量接近竖直。", "大腿后侧有拉紧感就回来。"],
+        warnings: ["不要蹲下去。", "不要驼背低头。", "有腰酸就减幅度。"],
+        breath: "呼吸：往后折时吸气，站回时呼气。"
+      },
+      bridge: {
+        name: "臀桥",
+        dose: "12 次",
+        cues: ["先轻收腹，再夹臀抬髋。", "2 秒抬起，顶端停 2 秒，3 秒放下。", "肩、髋、膝接近一条斜线即可。"],
+        warnings: ["不要为了抬高而拱腰。", "腰酸就抬低一点。"],
+        breath: "呼吸：抬起时呼气，放下时吸气。"
+      },
+      coreSlide: {
+        name: "仰卧核心滑腿",
+        dose: "6 次/侧",
+        cues: ["仰卧屈膝，双脚踩地，先轻收腹。", "一侧脚跟贴地慢慢向前滑出半程，再慢慢滑回。", "左右交替，腰背保持稳定。"],
+        warnings: ["不要卷腹。", "不要让腰明显拱起来。", "腰酸就缩短滑出距离。"],
+        breath: "呼吸：滑出时呼气，滑回时吸气。"
+      },
+      birdDog: {
+        name: "鸟狗式降级",
+        dose: "6 次/侧",
+        cues: ["先只伸腿，脚尖朝下。", "伸出去停 1 秒，再慢慢收回。", "腰背保持平，骨盆别晃。"],
+        warnings: ["不要把腿抬很高。", "第二轮不稳就只做伸腿版。", "手腕不舒服可用拳头或前臂支撑。"],
+        breath: "呼吸：伸出时呼气，收回时吸气。"
+      },
+      row: {
+        name: "长弹力带坐姿划船",
+        dose: "12 次",
+        cues: ["长带绕前脚掌中部，膝盖微弯。", "坐高，肩放松，肘往后拉到肋骨两侧。", "停 1 秒，再慢慢放回。"],
+        warnings: ["手腕保持直，不要用手腕拽。", "不要耸肩。", "先小力试拉，防止带子滑脱。"],
+        breath: "呼吸：拉回时呼气，放回时吸气。"
+      },
+      forearmWallPush: {
+        name: "前臂靠墙推",
+        dose: "10 次",
+        cues: ["双前臂贴墙，肘在胸口到肩膀高度。", "脚后退半步，身体保持一条斜线。", "胸口慢慢靠近墙，再用前臂把身体推回。"],
+        warnings: ["手腕不承重。", "不要塌腰。", "肩膀不要耸到耳朵旁。"],
+        breath: "呼吸：靠近墙时吸气，推回时呼气。"
+      },
+      sideStep: {
+        name: "短弹力带左右侧步",
+        dose: "20-30 秒",
+        cues: ["短带套膝盖上方。", "微屈膝，小步横移。", "脚尖朝前，膝盖跟脚尖同方向。"],
+        warnings: ["小腿不舒服就去掉弹力带或跳过。", "不要左右甩腰。"],
+        breath: "呼吸：保持顺，不屏气。"
+      },
+      calfRaise: {
+        name: "坐姿提踵",
+        dose: "12 次",
+        cues: ["坐椅子，脚掌踩地。", "脚跟 2 秒抬起，2 秒落下。"],
+        warnings: ["旧伤侧疼就跳过。", "这是轻量唤醒，不是练爆小腿。"],
+        breath: "呼吸：抬起呼气，落下吸气。"
+      },
+      pillow: {
+        name: "抱枕夹胸",
+        dose: "5 秒 x 8 次",
+        cues: ["枕头放胸前，两前臂向内夹。", "夹 5 秒，放松 5 秒。"],
+        warnings: ["肩放松。", "手腕保持直。", "不要耸肩憋气。"],
+        breath: "呼吸：夹紧时缓慢呼气。"
+      },
+      calfStraight: {
+        name: "直膝小腿拉伸",
+        dose: "30 秒/侧",
+        cues: ["扶墙，一脚前一脚后。", "后腿膝盖伸直，脚跟压地。", "拉小腿肚。"],
+        warnings: ["拉到有牵拉感就够。", "旧伤侧轻一点。"],
+        breath: "呼吸：慢慢呼吸，让小腿放松。"
+      },
+      calfBent: {
+        name: "屈膝小腿拉伸",
+        dose: "30 秒/侧",
+        cues: ["同样扶墙，后腿膝盖微弯。", "后脚跟仍然压地。", "拉脚踝上方深层小腿。"],
+        warnings: ["不要压到疼。", "旧伤侧轻一点。"],
+        breath: "呼吸：每次呼气时放松一点。"
+      },
+      hamstring: {
+        name: "大腿后侧拉伸",
+        dose: "30 秒/侧",
+        cues: ["一脚前伸，脚跟着地，脚尖翘起。", "屁股往后坐，上身从髋部前倾。", "背尽量直。"],
+        warnings: ["不是弯腰够脚尖。", "腰不舒服就减幅度。"],
+        breath: "呼吸：慢慢呼吸，不弹振。"
+      },
+      gluteStretch: {
+        name: "坐姿臀部拉伸",
+        dose: "30 秒/侧",
+        cues: ["坐椅子，脚踝搭到另一侧膝盖上。", "背挺直，身体微微前倾。", "拉臀部外侧。"],
+        warnings: ["膝盖不舒服就减小角度。", "不要用手硬压膝盖。"],
+        breath: "呼吸：呼气时放松臀部。"
+      },
+      doorway: {
+        name: "门框胸肩打开",
+        dose: "20-30 秒/侧",
+        cues: ["前臂贴门框，肘略低于肩。", "哪边前臂贴门框，哪边脚向前半步。", "身体整体轻轻往前，胸肩被拉开。"],
+        warnings: ["不要用手腕顶。", "不要耸肩。", "不要扭腰，不能拉到麻。"],
+        breath: "呼吸：慢慢呼吸，胸口打开。"
+      },
+      rest: {
+        name: "休息",
+        dose: "调整呼吸",
+        cues: ["喝一小口水。", "检查下一个动作要领。", "如果动作已经走形，下一项减少次数。"],
+        warnings: ["不要坐太久到身体冷掉。", "疼痛不是训练效果。"],
+        breath: "呼吸：鼻吸口呼，慢下来。"
+      },
+      finish: {
+        name: "完成",
+        dose: "今天结束",
+        cues: ["记录小腿和手腕感觉。", "明天根据身体状态选恢复、普通走或低配力量。"],
+        warnings: ["不要为了补课加练。", "旧伤疼痛加重就继续恢复。"],
+        breath: "呼吸：收工，今天到这里。"
+      }
+    };
+
+    const baseWarmup = [
+      ["slowWalk", 120, "热身"],
+      ["shoulderCircles", 50, "热身"],
+      ["scapula", 55, "热身"],
+      ["chinTuck", 45, "热身"],
+      ["thoracicTurn", 50, "热身"],
+      ["ankle", 70, "热身"],
+      ["hipHingeWarm", 60, "热身"]
+    ];
+
+    const baseStretch = [
+      ["calfStraight", 70, "拉伸"],
+      ["calfBent", 70, "拉伸"],
+      ["hamstring", 70, "拉伸"],
+      ["gluteStretch", 70, "拉伸"],
+      ["doorway", 60, "拉伸"]
+    ];
+
+    const roundStandard = [
+      ["chairSit", 85, "力量"],
+      ["hipHinge", 65, "力量"],
+      ["bridge", 90, "力量"],
+      ["coreSlide", 80, "力量"],
+      ["birdDog", 80, "力量"],
+      ["row", 85, "力量"],
+      ["forearmWallPush", 75, "力量"],
+      ["sideStep", 45, "力量"],
+      ["calfRaise", 55, "力量"]
+    ];
+
+    const roundCalfSafe = [
+      ["chairSit", 70, "力量"],
+      ["hipHinge", 55, "力量"],
+      ["bridge", 80, "力量"],
+      ["coreSlide", 75, "力量"],
+      ["birdDog", 80, "力量"],
+      ["row", 80, "力量"],
+      ["forearmWallPush", 70, "力量"],
+      ["pillow", 70, "力量"],
+      ["calfRaise", 45, "力量"]
+    ];
+
+    const roundLow = [
+      ["chairSit", 70, "力量"],
+      ["bridge", 80, "力量"],
+      ["coreSlide", 75, "力量"],
+      ["birdDog", 80, "力量"],
+      ["row", 80, "力量"],
+      ["forearmWallPush", 70, "力量"]
+    ];
+
+    const state = {
+      steps: [],
+      index: 0,
+      remaining: 0,
+      running: false,
+      timer: null,
+      started: false,
+      lastTick: 0
+    };
+
+    const el = {
+      preset: document.getElementById("preset"),
+      rest: document.getElementById("rest"),
+      voice: document.getElementById("voice"),
+      beep: document.getElementById("beep"),
+      status: document.getElementById("status"),
+      phase: document.getElementById("phase"),
+      count: document.getElementById("count"),
+      ring: document.getElementById("ring"),
+      time: document.getElementById("time"),
+      stepName: document.getElementById("stepName"),
+      stepDose: document.getElementById("stepDose"),
+      cues: document.getElementById("cues"),
+      warnings: document.getElementById("warnings"),
+      breath: document.getElementById("breath"),
+      next: document.getElementById("next"),
+      queue: document.getElementById("queue"),
+      startBtn: document.getElementById("startBtn"),
+      startIcon: document.getElementById("startIcon"),
+      startText: document.getElementById("startText"),
+      prevBtn: document.getElementById("prevBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      totalTime: document.getElementById("totalTime"),
+      workCount: document.getElementById("workCount")
+    };
+
+    function makeSteps() {
+      const restSeconds = Number(el.rest.value);
+      const preset = el.preset.value;
+      const steps = [];
+      const round = preset === "calfSafe" ? roundCalfSafe : preset === "low" ? roundLow : roundStandard;
+      const rounds = preset === "low" ? 1 : 2;
+
+      baseWarmup.forEach(item => steps.push(toStep(item)));
+      for (let r = 1; r <= rounds; r++) {
+        round.forEach((item, i) => {
+          const step = toStep(item);
+          step.round = r;
+          steps.push(step);
+          if (i < round.length - 1) {
+            const rest = toStep(["rest", restSeconds, "休息"]);
+            rest.round = r;
+            steps.push(rest);
+          }
+        });
+        if (preset === "standard") {
+          const finisher = toStep(["marchFast", 60, "密度"]);
+          finisher.round = r;
+          steps.push(finisher);
+        }
+        if (r < rounds) {
+          const rest = toStep(["rest", restSeconds, "轮间休息"]);
+          rest.round = r;
+          steps.push(rest);
+        }
+      }
+      baseStretch.forEach(item => steps.push(toStep(item)));
+      steps.push(toStep(["finish", 1, "完成"]));
+      return steps;
+    }
+
+    function toStep(item) {
+      const info = actionInfo[item[0]];
+      return {
+        key: item[0],
+        seconds: item[1],
+        total: item[1],
+        phase: item[2],
+        name: info.name,
+        dose: info.dose,
+        cues: info.cues,
+        warnings: info.warnings,
+        breath: info.breath
+      };
+    }
+
+    function formatTime(seconds) {
+      const s = Math.max(0, Math.ceil(seconds));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+    }
+
+    function rebuild(resetIndex = true) {
+      state.steps = makeSteps();
+      if (resetIndex) {
+        state.index = 0;
+        state.remaining = state.steps[0].seconds;
+        state.started = false;
+        pause();
+      } else {
+        state.index = Math.min(state.index, state.steps.length - 1);
+        state.remaining = Math.min(state.remaining, state.steps[state.index].seconds);
+      }
+      render();
+    }
+
+    function render() {
+      const step = state.steps[state.index] || toStep(["finish", 1, "完成"]);
+      const info = actionInfo[step.key];
+      el.status.textContent = state.running ? "进行中" : state.started ? "已暂停" : "未开始";
+      el.phase.textContent = step.phase + (step.round ? ` · 第 ${step.round} 轮` : "");
+      el.phase.className = "phase " + (step.key === "rest" ? "rest" : step.key === "finish" ? "stop" : (step.phase === "力量" || step.phase === "密度") ? "work" : "");
+      el.count.textContent = `${Math.min(state.index + 1, state.steps.length)} / ${state.steps.length}`;
+      el.time.textContent = formatTime(state.remaining);
+      el.stepName.textContent = step.name;
+      el.stepDose.textContent = step.dose;
+      el.cues.innerHTML = step.cues.map(x => `<li>${x}</li>`).join("");
+      el.warnings.innerHTML = step.warnings.map(x => `<li>${x}</li>`).join("");
+      el.breath.textContent = step.breath;
+      const next = state.steps[state.index + 1];
+      el.next.textContent = next ? `下一项：${next.phase} · ${next.name}` : "下一项：暂无";
+      const done = step.total - state.remaining;
+      const progress = step.total ? Math.min(1, Math.max(0, done / step.total)) : 1;
+      el.ring.style.setProperty("--p", `${progress * 360}deg`);
+      renderQueue();
+      updateStartButton();
+      updateSummary();
+    }
+
+    function renderQueue() {
+      el.queue.innerHTML = state.steps.map((step, i) => {
+        const cls = i === state.index ? "queue-item active" : i < state.index ? "queue-item done" : "queue-item";
+        const round = step.round ? ` · ${step.round}` : "";
+        return `<div class="${cls}"><span class="queue-num">${i + 1}</span><span>${step.phase}${round} · ${step.name}</span><span class="queue-time">${formatTime(step.seconds)}</span></div>`;
+      }).join("");
+      const active = el.queue.querySelector(".active");
+      if (active) active.scrollIntoView({ block: "nearest" });
+    }
+
+    function updateSummary() {
+      const seconds = state.steps.reduce((sum, step) => sum + step.seconds, 0);
+      const actions = state.steps.filter(step => !["rest", "finish"].includes(step.key)).length;
+      el.totalTime.textContent = `${Math.round(seconds / 60)} 分`;
+      el.workCount.textContent = `${actions} 项`;
+    }
+
+    function updateStartButton() {
+      if (state.running) {
+        el.startText.textContent = "暂停";
+        el.startIcon.setAttribute("d", "M8 5h3v14H8zM13 5h3v14h-3z");
+      } else {
+        el.startText.textContent = state.started ? "继续" : "开始";
+        el.startIcon.setAttribute("d", "M8 5v14l11-7z");
+      }
+    }
+
+    function start() {
+      if (state.running) return;
+      state.running = true;
+      state.started = true;
+      state.lastTick = Date.now();
+      speakCurrent();
+      state.timer = window.setInterval(tick, 250);
+      render();
+    }
+
+    function pause() {
+      state.running = false;
+      if (state.timer) window.clearInterval(state.timer);
+      state.timer = null;
+      render();
+    }
+
+    function toggle() {
+      state.running ? pause() : start();
+    }
+
+    function tick() {
+      const now = Date.now();
+      const delta = (now - state.lastTick) / 1000;
+      state.lastTick = now;
+      state.remaining -= delta;
+      if (state.remaining <= 3 && state.remaining + delta > 3) beep(620, 0.06);
+      if (state.remaining <= 2 && state.remaining + delta > 2) beep(620, 0.06);
+      if (state.remaining <= 1 && state.remaining + delta > 1) beep(620, 0.06);
+      if (state.remaining <= 0) {
+        nextStep(true);
+      } else {
+        render();
+      }
+    }
+
+    function nextStep(auto = false) {
+      if (state.index >= state.steps.length - 1) {
+        pause();
+        state.remaining = 0;
+        render();
+        return;
+      }
+      state.index += 1;
+      state.remaining = state.steps[state.index].seconds;
+      if (auto) {
+        beep(860, 0.12);
+        speakCurrent();
+      }
+      render();
+    }
+
+    function prevStep() {
+      state.index = Math.max(0, state.index - 1);
+      state.remaining = state.steps[state.index].seconds;
+      render();
+    }
+
+    function resetAll() {
+      state.index = 0;
+      state.remaining = state.steps[0].seconds;
+      state.started = false;
+      pause();
+      render();
+    }
+
+    function beep(freq, duration) {
+      if (!el.beep.checked) return;
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        gain.gain.value = 0.05;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        window.setTimeout(() => {
+          osc.stop();
+          ctx.close();
+        }, duration * 1000);
+      } catch (e) {
+        // Audio is optional.
+      }
+    }
+
+    function speakCurrent() {
+      if (!el.voice.checked || !("speechSynthesis" in window)) return;
+      const step = state.steps[state.index];
+      if (!step || step.key === "finish") return;
+      const text = step.key === "rest"
+        ? `休息，下一项 ${state.steps[state.index + 1] ? state.steps[state.index + 1].name : "完成"}`
+        : `${step.phase}，${step.name}，${step.dose}`;
+      try {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = "zh-CN";
+        utter.rate = 1;
+        utter.pitch = 1;
+        window.speechSynthesis.speak(utter);
+      } catch (e) {
+        // Speech is optional.
+      }
+    }
+
+    el.startBtn.addEventListener("click", toggle);
+    el.nextBtn.addEventListener("click", () => nextStep(false));
+    el.prevBtn.addEventListener("click", prevStep);
+    el.resetBtn.addEventListener("click", resetAll);
+    el.preset.addEventListener("change", () => rebuild(true));
+    el.rest.addEventListener("change", () => rebuild(true));
+    el.voice.addEventListener("change", render);
+    el.beep.addEventListener("change", render);
+
+    document.addEventListener("keydown", (event) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+        toggle();
+      }
+      if (event.key === "ArrowRight") nextStep(false);
+      if (event.key === "ArrowLeft") prevStep();
+      if (event.key.toLowerCase() === "r") resetAll();
+    });
+
+    rebuild(true);
+
+    if ("serviceWorker" in navigator && location.protocol === "https:") {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

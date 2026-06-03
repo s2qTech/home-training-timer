@@ -1,0 +1,19 @@
+{
+  "name": "居家力量训练计时器",
+  "short_name": "训练计时器",
+  "description": "自动切换动作、休息和拉伸的居家力量训练计时器。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a73e8",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./timer-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
