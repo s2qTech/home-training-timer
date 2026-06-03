@@ -509,7 +509,7 @@
       .app {
         width: 100%;
         margin: 0;
-        padding: 8px 8px 92px;
+        padding: 8px 8px calc(140px + env(safe-area-inset-bottom));
         gap: 8px;
       }
 
@@ -623,7 +623,7 @@
         position: fixed;
         left: 8px;
         right: 8px;
-        bottom: 8px;
+        bottom: calc(8px + env(safe-area-inset-bottom));
         z-index: 20;
         grid-template-columns: 1fr 1fr;
         border-radius: var(--radius);
@@ -637,7 +637,7 @@
       }
 
       .controls .primary {
-        grid-column: 1 / -1;
+        grid-column: auto;
       }
 
       .toggles,
@@ -1172,7 +1172,11 @@
         return `<div class="${cls}"><span class="queue-num">${i + 1}</span><span>${step.phase}${round} · ${step.name}</span><span class="queue-time">${formatTime(step.seconds)}</span></div>`;
       }).join("");
       const active = el.queue.querySelector(".active");
-      if (active) active.scrollIntoView({ block: "nearest" });
+      if (active) {
+        const top = active.offsetTop - el.queue.offsetTop;
+        const target = top - (el.queue.clientHeight / 2) + (active.clientHeight / 2);
+        el.queue.scrollTop = Math.max(0, target);
+      }
     }
 
     function updateSummary() {
@@ -1318,7 +1322,13 @@
       if (event.key.toLowerCase() === "r") resetAll();
     });
 
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
     rebuild(true);
+
+    window.addEventListener("load", () => {
+      window.setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }), 0);
+    });
 
     if ("serviceWorker" in navigator && location.protocol === "https:") {
       window.addEventListener("load", () => {
