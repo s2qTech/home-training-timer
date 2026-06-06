@@ -1017,8 +1017,8 @@
           <div class="detail-box">
             <h3>动作要领</h3>
             <ul id="cues">
-              <li>标准版默认 2 轮；小腿不适时选小腿保护版。</li>
-              <li>第二轮动作明显走形，就用跳过或暂停结束。</li>
+              <li>标准加强版默认 2 轮；小腿不适时选小腿保护版。</li>
+              <li>出差选弹力带版，火车飞机久坐选座位恢复版。</li>
             </ul>
           </div>
           <div class="detail-box">
@@ -1061,9 +1061,11 @@
         <div class="setting">
           <label for="preset">训练版本</label>
           <select id="preset">
-            <option value="standard">标准版 1.6：核心胸肩加强</option>
+            <option value="standard">标准加强版 1.8：力量 + 腰背恢复</option>
             <option value="calfSafe">小腿保护版：少侧步/少提踵</option>
             <option value="low">低配版：1轮力量 + 拉伸</option>
+            <option value="travel">出差弹力带版：无垫/酒店</option>
+            <option value="seat">车厢座位恢复版：火车/飞机</option>
           </select>
         </div>
         <div class="setting">
@@ -1085,9 +1087,9 @@
         <div class="metric"><b id="workCount">--</b><span>动作数量</span></div>
       </section>
 
-      <section class="plan-note">
+      <section class="plan-note" id="planNote">
         <b>本版调整</b>
-        肚子和胸部不能定点减脂，所以本版改为加强核心、胸肩和上背。贴墙静蹲先不放默认流程；它主要练大腿前侧，腿疲劳或小腿旧伤不适时收益不如风险划算。
+        1.8 版把猫牛式放入热身，把单腿抱膝呼吸放入收尾恢复；新增出差弹力带和车厢座位恢复。主训练仍以低冲击、护腰、避开手腕承重为筛选原则。
       </section>
 
       <section class="queue">
@@ -1157,6 +1159,27 @@
         warnings: ["不是深蹲。", "腰不舒服就减少幅度。"],
         breath: "呼吸：往后折时吸气，站回时呼气。"
       },
+      deskCatCow: {
+        name: "扶桌猫牛式",
+        dose: "6-8 次",
+        cues: ["双手或前臂扶桌边，脚退半步。", "吸气时胸口轻轻向前，背微微伸展。", "呼气时尾骨内收，背慢慢拱起。"],
+        warnings: ["动作很小，不追幅度。", "不要猛塌腰、猛仰头。", "出现腿麻、放射痛就停止。"],
+        breath: "呼吸：吸气展开，呼气拱背，慢慢做。"
+      },
+      standingW: {
+        name: "站姿 W 夹背",
+        dose: "10 次，每次停 2 秒",
+        cues: ["手臂做 W 形，肘在身体两侧。", "肩胛骨轻轻向后下夹，胸口自然打开。", "停 2 秒后完全放松。"],
+        warnings: ["不要耸肩。", "不要挺腰代偿。", "脖子紧就减小幅度。"],
+        breath: "呼吸：夹背时呼气，放松时吸气。"
+      },
+      wallAngel: {
+        name: "靠墙小天使",
+        dose: "8 次",
+        cues: ["背靠墙站，肋骨轻收。", "手臂沿墙小幅上滑再下滑。", "只做到肩膀舒服的范围。"],
+        warnings: ["腰不要为了贴墙而硬拱或硬压。", "肩痛、手麻就跳过。"],
+        breath: "呼吸：上滑吸气，下滑呼气。"
+      },
       chairSit: {
         name: "椅子坐站",
         dose: "10-12 次",
@@ -1195,8 +1218,8 @@
       row: {
         name: "长弹力带坐姿划船",
         dose: "12 次",
-        cues: ["长带绕前脚掌中部，膝盖微弯。", "坐高，肩放松，肘往后拉到肋骨两侧。", "停 1 秒，再慢慢放回。"],
-        warnings: ["手腕保持直，不要用手腕拽。", "不要耸肩。", "先小力试拉，防止带子滑脱。"],
+        cues: ["坐椅子或床边，长带绕前脚掌中部，膝盖微弯。", "坐高，肩放松，肘往后拉到肋骨两侧。", "停 1 秒，再用 2 秒慢慢放回。"],
+        warnings: ["手腕保持直，不要用手腕拽。", "不要耸肩。", "先小力试拉，防止带子滑脱；出差别随便挂门把手。"],
         breath: "呼吸：拉回时呼气，放回时吸气。"
       },
       forearmWallPush: {
@@ -1262,6 +1285,55 @@
         warnings: ["不要用手腕顶。", "不要耸肩。", "不要扭腰，不能拉到麻。"],
         breath: "呼吸：慢慢呼吸，胸口打开。"
       },
+      singleKneeHug: {
+        name: "单腿抱膝呼吸",
+        dose: "5-8 次呼吸/侧",
+        cues: ["仰卧屈膝，一侧膝盖轻轻抱向胸口。", "另一只脚继续踩地，腰背自然放松。", "换侧做，最后不必强求双膝一起抱。"],
+        warnings: ["轻轻抱，不要猛拉。", "有腿麻、放射痛或腰痛加重就停止。", "腰突史优先单腿做。"],
+        breath: "呼吸：每次呼气时让腰背放松一点。"
+      },
+      seatedBreath: {
+        name: "坐姿放松呼吸",
+        dose: "60 秒",
+        cues: ["坐到椅子前半段，双脚踩地。", "头顶向上，肩膀放松。", "鼻吸口呼，把呼吸慢下来。"],
+        warnings: ["不要憋气。", "头晕、胸闷就停止。"],
+        breath: "呼吸：吸 3 秒，呼 4-5 秒。"
+      },
+      seatedCatCow: {
+        name: "坐姿猫牛式",
+        dose: "6-8 次",
+        cues: ["坐直，双手轻放大腿。", "吸气时胸口轻轻向前。", "呼气时尾骨内收，背慢慢变圆。"],
+        warnings: ["幅度小，不要猛弯腰。", "腰痛往腿上窜就停止。"],
+        breath: "呼吸：吸气展开，呼气放松。"
+      },
+      seatedAnklePump: {
+        name: "坐姿脚踝泵",
+        dose: "30-45 秒",
+        cues: ["脚跟踩地，脚尖上翘再放下。", "再换成脚尖踩地，脚跟抬起再放下。", "左右脚可以一起做。"],
+        warnings: ["不要跺脚。", "小腿旧伤侧轻一点。"],
+        breath: "呼吸：自然呼吸。"
+      },
+      seatedGluteSqueeze: {
+        name: "坐姿夹臀",
+        dose: "5 秒 x 8 次",
+        cues: ["坐稳，轻轻夹紧臀部。", "保持 5 秒，再完全放松。", "身体不要上下晃。"],
+        warnings: ["不要憋气。", "腰不要跟着用力后仰。"],
+        breath: "呼吸：夹紧时缓慢呼气。"
+      },
+      seatedKneeExt: {
+        name: "坐姿伸膝",
+        dose: "8 次/侧",
+        cues: ["坐稳，一侧小腿慢慢向前伸直。", "脚尖回勾，停 1 秒再放下。", "左右交替。"],
+        warnings: ["不要踢腿。", "膝盖痛就缩小幅度或跳过。"],
+        breath: "呼吸：伸直呼气，放下吸气。"
+      },
+      seatedChestOpen: {
+        name: "坐姿胸肩打开",
+        dose: "6-8 次",
+        cues: ["双手放身体两侧或轻扶椅边。", "肩胛轻轻向后下，胸口打开。", "停 2 秒后放松。"],
+        warnings: ["不要耸肩。", "不要把腰硬挺起来。"],
+        breath: "呼吸：打开时呼气，放松时吸气。"
+      },
       rest: {
         name: "休息",
         dose: "调整呼吸",
@@ -1284,6 +1356,7 @@
       ["scapula", 55, "热身"],
       ["chinTuck", 45, "热身"],
       ["thoracicTurn", 50, "热身"],
+      ["deskCatCow", 60, "热身"],
       ["ankle", 70, "热身"],
       ["hipHingeWarm", 60, "热身"]
     ];
@@ -1293,7 +1366,8 @@
       ["calfBent", 70, "拉伸"],
       ["hamstring", 70, "拉伸"],
       ["gluteStretch", 70, "拉伸"],
-      ["doorway", 60, "拉伸"]
+      ["doorway", 60, "拉伸"],
+      ["singleKneeHug", 90, "恢复"]
     ];
 
     const roundStandard = [
@@ -1329,6 +1403,65 @@
       ["forearmWallPush", 70, "力量"]
     ];
 
+    const travelWarmup = [
+      ["slowWalk", 90, "热身"],
+      ["shoulderCircles", 45, "热身"],
+      ["chinTuck", 40, "热身"],
+      ["deskCatCow", 60, "热身"],
+      ["ankle", 50, "热身"]
+    ];
+
+    const roundTravel = [
+      ["chairSit", 70, "力量"],
+      ["hipHinge", 55, "力量"],
+      ["row", 80, "力量"],
+      ["forearmWallPush", 65, "力量"],
+      ["standingW", 60, "力量"],
+      ["wallAngel", 60, "活动"],
+      ["sideStep", 35, "力量"]
+    ];
+
+    const travelStretch = [
+      ["hamstring", 60, "拉伸"],
+      ["gluteStretch", 60, "拉伸"],
+      ["doorway", 50, "拉伸"],
+      ["singleKneeHug", 90, "恢复"]
+    ];
+
+    const seatRoutine = [
+      ["seatedBreath", 60, "恢复"],
+      ["seatedCatCow", 60, "恢复"],
+      ["seatedAnklePump", 45, "循环"],
+      ["seatedChestOpen", 50, "恢复"],
+      ["seatedGluteSqueeze", 60, "唤醒"],
+      ["seatedKneeExt", 70, "循环"],
+      ["chinTuck", 40, "恢复"],
+      ["seatedBreath", 60, "恢复"]
+    ];
+
+    const presetNotes = {
+      standard: {
+        title: "标准加强版 1.8",
+        text: "这是主要力量日：保留低冲击、护腰、避开手腕承重的主线；猫牛式只负责热身活动，单腿抱膝负责收尾放松，不替代力量动作。"
+      },
+      calfSafe: {
+        title: "小腿保护版",
+        text: "用于小腿、大腿外侧或站立负荷偏高时。减少侧向刺激和密度收尾，目标是练到但不再顶小腿。"
+      },
+      low: {
+        title: "低配维护版",
+        text: "用于忙、累、睡眠差或刚提高走后的第二天。它算维护和恢复，不需要补课，也不追心率。"
+      },
+      travel: {
+        title: "出差弹力带版",
+        text: "用于酒店、办公室、探亲等没有瑜伽垫但能带弹力带的场景。用椅子/床边/墙完成，保留弹力带划船；短带侧步小腿或大腿外侧紧时直接跳过。"
+      },
+      seat: {
+        title: "车厢座位恢复版",
+        text: "用于火车、飞机、长途久坐。它不是力量日，只是活动踝、髋、腰背和肩颈，降低久坐僵硬。空间不足时只做脚踝泵和呼吸。"
+      }
+    };
+
     const state = {
       steps: [],
       index: 0,
@@ -1363,17 +1496,27 @@
       nextBtn: document.getElementById("nextBtn"),
       resetBtn: document.getElementById("resetBtn"),
       totalTime: document.getElementById("totalTime"),
-      workCount: document.getElementById("workCount")
+      workCount: document.getElementById("workCount"),
+      planNote: document.getElementById("planNote")
     };
 
     function makeSteps() {
       const restSeconds = Number(el.rest.value);
       const preset = el.preset.value;
       const steps = [];
-      const round = preset === "calfSafe" ? roundCalfSafe : preset === "low" ? roundLow : roundStandard;
+
+      if (preset === "seat") {
+        seatRoutine.forEach(item => steps.push(toStep(item)));
+        steps.push(toStep(["finish", 1, "完成"]));
+        return steps;
+      }
+
+      const warmup = preset === "travel" ? travelWarmup : baseWarmup;
+      const stretch = preset === "travel" ? travelStretch : baseStretch;
+      const round = preset === "travel" ? roundTravel : preset === "calfSafe" ? roundCalfSafe : preset === "low" ? roundLow : roundStandard;
       const rounds = preset === "low" ? 1 : 2;
 
-      baseWarmup.forEach(item => steps.push(toStep(item)));
+      warmup.forEach(item => steps.push(toStep(item)));
       for (let r = 1; r <= rounds; r++) {
         round.forEach((item, i) => {
           const step = toStep(item);
@@ -1396,7 +1539,7 @@
           steps.push(rest);
         }
       }
-      baseStretch.forEach(item => steps.push(toStep(item)));
+      stretch.forEach(item => steps.push(toStep(item)));
       steps.push(toStep(["finish", 1, "完成"]));
       return steps;
     }
@@ -1479,6 +1622,8 @@
       const actions = state.steps.filter(step => !["rest", "finish"].includes(step.key)).length;
       el.totalTime.textContent = `${Math.round(seconds / 60)} 分`;
       el.workCount.textContent = `${actions} 项`;
+      const note = presetNotes[el.preset.value] || presetNotes.standard;
+      el.planNote.innerHTML = `<b>${note.title}</b>${note.text}`;
     }
 
     function updateStartButton() {
