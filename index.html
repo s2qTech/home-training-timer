@@ -462,7 +462,7 @@
 
     .toggles {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
       gap: 8px;
     }
 
@@ -1061,7 +1061,7 @@
         <div class="setting">
           <label for="preset">训练版本</label>
           <select id="preset">
-            <option value="standard">标准加强版 1.8：力量 + 腰背恢复</option>
+            <option value="standard">标准加强版 2.0：常亮 + 休息预习</option>
             <option value="calfSafe">小腿保护版：少侧步/少提踵</option>
             <option value="low">低配版：1轮力量 + 拉伸</option>
             <option value="travel">出差弹力带版：无垫/酒店</option>
@@ -1079,6 +1079,7 @@
         <div class="toggles">
           <label class="toggle"><input id="voice" type="checkbox" checked> 语音提示</label>
           <label class="toggle"><input id="beep" type="checkbox" checked> 提示音</label>
+          <label class="toggle"><input id="wake" type="checkbox" checked> <span id="wakeText">训练常亮</span></label>
         </div>
       </section>
 
@@ -1089,7 +1090,7 @@
 
       <section class="plan-note" id="planNote">
         <b>本版调整</b>
-        1.8 版把猫牛式放入热身，把单腿抱膝呼吸放入收尾恢复；新增出差弹力带和车厢座位恢复。主训练仍以低冲击、护腰、避开手腕承重为筛选原则。
+        2.0 版增加训练常亮开关，并保留休息时预习下一项动作要领。主训练仍以低冲击、护腰、避开手腕承重为筛选原则。
       </section>
 
       <section class="queue">
@@ -1098,7 +1099,7 @@
       </section>
     </aside>
 
-    <div class="footer-note">建议手机保持亮屏或把屏幕常亮时间调长。浏览器可能需要第一次点击后才允许语音和提示音。</div>
+    <div class="footer-note">已提供训练常亮开关。浏览器不支持或系统省电限制时，仍需手动调长屏幕自动锁定时间。</div>
   </div>
 
   <script>
@@ -1441,8 +1442,8 @@
 
     const presetNotes = {
       standard: {
-        title: "标准加强版 1.8",
-        text: "这是主要力量日：保留低冲击、护腰、避开手腕承重的主线；猫牛式只负责热身活动，单腿抱膝负责收尾放松，不替代力量动作。"
+        title: "标准加强版 2.0",
+        text: "这是主要力量日：训练时会尽量保持屏幕常亮，休息时会预习下一项要领；猫牛式负责热身活动，单腿抱膝负责收尾放松，不替代力量动作。"
       },
       calfSafe: {
         title: "小腿保护版",
@@ -1469,7 +1470,8 @@
       running: false,
       timer: null,
       started: false,
-      lastTick: 0
+      lastTick: 0,
+      wakeLock: null
     };
 
     const el = {
@@ -1477,6 +1479,8 @@
       rest: document.getElementById("rest"),
       voice: document.getElementById("voice"),
       beep: document.getElementById("beep"),
+      wake: document.getElementById("wake"),
+      wakeText: document.getElementById("wakeText"),
       status: document.getElementById("status"),
       phase: document.getElementById("phase"),
       count: document.getElementById("count"),
@@ -1582,19 +1586,28 @@
 
     function render() {
       const step = state.steps[state.index] || toStep(["finish", 1, "完成"]);
-      const info = actionInfo[step.key];
+      const next = state.steps[state.index + 1];
+      const previewNext = step.key === "rest" && next && next.key !== "finish";
       el.status.textContent = state.running ? "进行中" : state.started ? "已暂停" : "未开始";
       el.phase.textContent = step.phase + (step.round ? ` · 第 ${step.round} 轮` : "");
       el.phase.className = "phase " + (step.key === "rest" ? "rest" : step.key === "finish" ? "stop" : (step.phase === "力量" || step.phase === "密度") ? "work" : "");
       el.count.textContent = `${Math.min(state.index + 1, state.steps.length)} / ${state.steps.length}`;
       el.time.textContent = formatTime(state.remaining);
-      el.stepName.textContent = step.name;
-      el.stepDose.textContent = step.dose;
-      el.cues.innerHTML = step.cues.map(x => `<li>${x}</li>`).join("");
-      el.warnings.innerHTML = step.warnings.map(x => `<li>${x}</li>`).join("");
-      el.breath.textContent = step.breath;
-      const next = state.steps[state.index + 1];
-      el.next.textContent = next ? `下一项：${next.phase} · ${next.name}` : "下一项：暂无";
+      if (previewNext) {
+        el.stepName.textContent = `休息：准备 ${next.name}`;
+        el.stepDose.textContent = `下一项 ${next.phase} · ${next.dose}`;
+        el.cues.innerHTML = next.cues.map(x => `<li>${x}</li>`).join("");
+        el.warnings.innerHTML = next.warnings.map(x => `<li>${x}</li>`).join("");
+        el.breath.textContent = `先调整呼吸。下一项：${next.breath.replace(/^呼吸：/, "")}`;
+        el.next.textContent = `休息结束后：${next.phase} · ${next.name}`;
+      } else {
+        el.stepName.textContent = step.name;
+        el.stepDose.textContent = step.dose;
+        el.cues.innerHTML = step.cues.map(x => `<li>${x}</li>`).join("");
+        el.warnings.innerHTML = step.warnings.map(x => `<li>${x}</li>`).join("");
+        el.breath.textContent = step.breath;
+        el.next.textContent = next ? `下一项：${next.phase} · ${next.name}` : "下一项：暂无";
+      }
       const done = step.total - state.remaining;
       const progress = step.total ? Math.min(1, Math.max(0, done / step.total)) : 1;
       el.ring.style.setProperty("--p", `${progress * 360}deg`);
@@ -1636,11 +1649,54 @@
       }
     }
 
+    function canUseWakeLock() {
+      return "wakeLock" in navigator && window.isSecureContext;
+    }
+
+    function updateWakeLabel() {
+      if (!el.wake.checked) {
+        el.wakeText.textContent = "常亮关闭";
+        return;
+      }
+      el.wakeText.textContent = canUseWakeLock() ? "训练常亮" : "常亮不可用";
+    }
+
+    async function requestWakeLock() {
+      updateWakeLabel();
+      if (!el.wake.checked || !canUseWakeLock() || state.wakeLock) return;
+      try {
+        state.wakeLock = await navigator.wakeLock.request("screen");
+        updateWakeLabel();
+        state.wakeLock.addEventListener("release", () => {
+          state.wakeLock = null;
+          if (state.running && el.wake.checked && document.visibilityState === "visible") {
+            window.setTimeout(requestWakeLock, 250);
+          }
+        });
+      } catch (e) {
+        state.wakeLock = null;
+        el.wakeText.textContent = "常亮不可用";
+      }
+    }
+
+    async function releaseWakeLock() {
+      const lock = state.wakeLock;
+      state.wakeLock = null;
+      updateWakeLabel();
+      if (!lock) return;
+      try {
+        await lock.release();
+      } catch (e) {
+        // Wake lock release is optional and browser controlled.
+      }
+    }
+
     function start() {
       if (state.running) return;
       state.running = true;
       state.started = true;
       state.lastTick = Date.now();
+      requestWakeLock();
       speakCurrent();
       state.timer = window.setInterval(tick, 250);
       render();
@@ -1650,6 +1706,7 @@
       state.running = false;
       if (state.timer) window.clearInterval(state.timer);
       state.timer = null;
+      releaseWakeLock();
       render();
     }
 
@@ -1728,8 +1785,11 @@
       if (!el.voice.checked || !("speechSynthesis" in window)) return;
       const step = state.steps[state.index];
       if (!step || step.key === "finish") return;
+      const next = state.steps[state.index + 1];
       const text = step.key === "rest"
-        ? `休息，下一项 ${state.steps[state.index + 1] ? state.steps[state.index + 1].name : "完成"}`
+        ? next && next.key !== "finish"
+          ? `休息，下一项 ${next.name}，${next.dose}。要点，${next.cues[0]}`
+          : "休息，下一项完成"
         : `${step.phase}，${step.name}，${step.dose}`;
       try {
         window.speechSynthesis.cancel();
@@ -1751,6 +1811,17 @@
     el.rest.addEventListener("change", () => rebuild(true));
     el.voice.addEventListener("change", render);
     el.beep.addEventListener("change", render);
+    el.wake.addEventListener("change", () => {
+      updateWakeLabel();
+      if (state.running && el.wake.checked) requestWakeLock();
+      if (!el.wake.checked) releaseWakeLock();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && state.running && el.wake.checked) {
+        requestWakeLock();
+      }
+    });
 
     document.addEventListener("keydown", (event) => {
       if (event.code === "Space") {
@@ -1764,6 +1835,7 @@
 
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
+    updateWakeLabel();
     rebuild(true);
 
     window.addEventListener("load", () => {
