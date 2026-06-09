@@ -487,6 +487,12 @@
       border-color: #ccd9d1;
     }
 
+    .toggle.disabled {
+      opacity: .48;
+      cursor: default;
+      background: #f8faf8;
+    }
+
     .toggle input {
       width: 18px;
       height: 18px;
@@ -988,8 +994,8 @@
   <div class="app">
     <header class="hero">
       <div>
-        <h1>居家力量训练计时器</h1>
-        <p>按动作自动切换，休息自动插入。动作走形就暂停或跳过，不用补课。</p>
+        <h1>训练与拉伸计时器</h1>
+        <p>按场景选择，自动切换动作。走前、走后、居家、出差和恢复都在这里处理。</p>
       </div>
       <div class="status-pill" id="status">未开始</div>
     </header>
@@ -1017,8 +1023,8 @@
           <div class="detail-box">
             <h3>动作要领</h3>
             <ul id="cues">
-              <li>标准加强版默认 2 轮；小腿不适时选小腿保护版。</li>
-              <li>出差选弹力带版，火车飞机久坐选座位恢复版。</li>
+              <li>先选当前场景，再按身体状态打开小腿保护。</li>
+              <li>出差时有弹力带就勾选，没有就自动换动作。</li>
             </ul>
           </div>
           <div class="detail-box">
@@ -1061,10 +1067,13 @@
         <div class="setting">
           <label for="preset">训练版本</label>
           <select id="preset">
-            <option value="standard">标准加强版 2.0：常亮 + 休息预习</option>
-            <option value="calfSafe">小腿保护版：少侧步/少提踵</option>
-            <option value="low">低配版：1轮力量 + 拉伸</option>
-            <option value="travel">出差弹力带版：无垫/酒店</option>
+            <option value="strength">居家力量标准版：2轮</option>
+            <option value="strengthShort">居家力量短版：忙/晚用</option>
+            <option value="walkWarmup">公园健走前热身</option>
+            <option value="walkStretchQuick">健走后最低拉伸</option>
+            <option value="walkStretchFull">健走后完整拉伸</option>
+            <option value="recoveryStretch">状态差恢复拉伸</option>
+            <option value="travel">出差酒店训练</option>
             <option value="seat">车厢座位恢复版：火车/飞机</option>
           </select>
         </div>
@@ -1080,6 +1089,8 @@
           <label class="toggle"><input id="voice" type="checkbox" checked> 语音提示</label>
           <label class="toggle"><input id="beep" type="checkbox" checked> 提示音</label>
           <label class="toggle"><input id="wake" type="checkbox" checked> <span id="wakeText">训练常亮</span></label>
+          <label class="toggle"><input id="calfCare" type="checkbox"> 小腿保护</label>
+          <label class="toggle"><input id="hasBand" type="checkbox" checked> 有弹力带</label>
         </div>
       </section>
 
@@ -1090,7 +1101,7 @@
 
       <section class="plan-note" id="planNote">
         <b>本版调整</b>
-        2.0 版增加训练常亮开关，并保留休息时预习下一项动作要领。主训练仍以低冲击、护腰、避开手腕承重为筛选原则。
+        2.1 版改为场景入口：走前、走后、状态差、居家力量、出差训练。小腿保护和弹力带改成条件开关，不再单独占一个版本。
       </section>
 
       <section class="queue">
@@ -1110,6 +1121,13 @@
         cues: ["小步、轻落地，手臂自然摆。", "身体慢慢热起来，不追出汗。"],
         warnings: ["不要高抬腿。", "左小腿不适时更要轻。"],
         breath: "呼吸：自然呼吸，能轻松说话。"
+      },
+      coolWalk: {
+        name: "慢走冷身",
+        dose: "3 分钟",
+        cues: ["从快走降到散步速度。", "步子变小，脚步变轻。", "让心率和呼吸慢慢下来。"],
+        warnings: ["不要刚冲完就立刻停住猛拉。", "腿发紧时更要慢慢降速。"],
+        breath: "呼吸：逐渐变慢，能完整说话。"
       },
       marchFast: {
         name: "原地小步快走",
@@ -1151,6 +1169,13 @@
         dose: "顺逆各 10 圈/侧",
         cues: ["扶墙，一只脚离地，用脚尖慢慢画圆。", "只动脚踝，不甩整条腿。"],
         warnings: ["旧伤侧小幅度。", "有刺痛就停。"],
+        breath: "呼吸：自然呼吸。"
+      },
+      heelToeRock: {
+        name: "脚跟脚尖滚动",
+        dose: "30-40 秒",
+        cues: ["扶墙或扶栏杆站稳。", "脚跟轻抬、放下，再脚尖轻轻翘起。", "动作小而慢，像给小腿和脚踝通电。"],
+        warnings: ["不要跺脚。", "小腿旧伤侧不舒服就减小幅度。"],
         breath: "呼吸：自然呼吸。"
       },
       hipHingeWarm: {
@@ -1345,7 +1370,7 @@
       finish: {
         name: "完成",
         dose: "今天结束",
-        cues: ["记录小腿和手腕感觉。", "明天根据身体状态选恢复、普通走或低配力量。"],
+        cues: ["记录小腿、腰背和手腕感觉。", "明天根据身体状态选恢复拉伸、普通走或居家力量短版。"],
         warnings: ["不要为了补课加练。", "旧伤疼痛加重就继续恢复。"],
         breath: "呼吸：收工，今天到这里。"
       }
@@ -1360,6 +1385,45 @@
       ["deskCatCow", 60, "热身"],
       ["ankle", 70, "热身"],
       ["hipHingeWarm", 60, "热身"]
+    ];
+
+    const walkWarmup = [
+      ["slowWalk", 90, "热身"],
+      ["shoulderCircles", 40, "热身"],
+      ["scapula", 40, "热身"],
+      ["thoracicTurn", 40, "热身"],
+      ["ankle", 60, "热身"],
+      ["heelToeRock", 40, "热身"],
+      ["hipHingeWarm", 50, "热身"]
+    ];
+
+    const walkStretchQuick = [
+      ["coolWalk", 180, "冷身"],
+      ["calfStraight", 70, "拉伸"],
+      ["calfBent", 70, "拉伸"],
+      ["hamstring", 70, "拉伸"]
+    ];
+
+    const walkStretchFull = [
+      ["coolWalk", 180, "冷身"],
+      ["calfStraight", 70, "拉伸"],
+      ["calfBent", 70, "拉伸"],
+      ["hamstring", 70, "拉伸"],
+      ["gluteStretch", 70, "拉伸"],
+      ["doorway", 60, "拉伸"],
+      ["singleKneeHug", 90, "恢复"]
+    ];
+
+    const recoveryStretch = [
+      ["seatedBreath", 60, "恢复"],
+      ["deskCatCow", 60, "恢复"],
+      ["seatedChestOpen", 50, "恢复"],
+      ["calfStraight", 70, "拉伸"],
+      ["calfBent", 70, "拉伸"],
+      ["hamstring", 70, "拉伸"],
+      ["gluteStretch", 70, "拉伸"],
+      ["doorway", 60, "拉伸"],
+      ["singleKneeHug", 90, "恢复"]
     ];
 
     const baseStretch = [
@@ -1412,7 +1476,7 @@
       ["ankle", 50, "热身"]
     ];
 
-    const roundTravel = [
+    const roundTravelBand = [
       ["chairSit", 70, "力量"],
       ["hipHinge", 55, "力量"],
       ["row", 80, "力量"],
@@ -1420,6 +1484,15 @@
       ["standingW", 60, "力量"],
       ["wallAngel", 60, "活动"],
       ["sideStep", 35, "力量"]
+    ];
+
+    const roundTravelNoBand = [
+      ["chairSit", 70, "力量"],
+      ["hipHinge", 55, "力量"],
+      ["forearmWallPush", 65, "力量"],
+      ["standingW", 60, "力量"],
+      ["wallAngel", 60, "活动"],
+      ["pillow", 70, "力量"]
     ];
 
     const travelStretch = [
@@ -1441,21 +1514,33 @@
     ];
 
     const presetNotes = {
-      standard: {
-        title: "标准加强版 2.0",
-        text: "这是主要力量日：训练时会尽量保持屏幕常亮，休息时会预习下一项要领；猫牛式负责热身活动，单腿抱膝负责收尾放松，不替代力量动作。"
+      strength: {
+        title: "居家力量标准版 2.1",
+        text: "这是主要力量日：2 轮力量 + 完整拉伸。休息时会预习下一项要领，训练时会尽量保持屏幕常亮。"
       },
-      calfSafe: {
-        title: "小腿保护版",
-        text: "用于小腿、大腿外侧或站立负荷偏高时。减少侧向刺激和密度收尾，目标是练到但不再顶小腿。"
+      strengthShort: {
+        title: "居家力量短版",
+        text: "用于忙、晚、累但还想维持力量触感的日子。只做 1 轮，不补课，不追心率。"
       },
-      low: {
-        title: "低配维护版",
-        text: "用于忙、累、睡眠差或刚提高走后的第二天。它算维护和恢复，不需要补课，也不追心率。"
+      walkWarmup: {
+        title: "公园健走前热身",
+        text: "用于到公园后、正式开始记录前。目标是让踝、小腿、髋和上背慢慢进入状态，不追出汗。"
+      },
+      walkStretchQuick: {
+        title: "健走后最低拉伸",
+        text: "用于走完后马上有家务、孩子、回家路程时。优先冷身和小腿处理，做完这套就算保底完成。"
+      },
+      walkStretchFull: {
+        title: "健走后完整拉伸",
+        text: "用于走完后时间允许。比最低版多臀部、胸肩和腰背放松，适合提高走或小腿发紧的日子。"
+      },
+      recoveryStretch: {
+        title: "状态差恢复拉伸",
+        text: "用于疲劳、晚睡、久站、加班后。它不是训练日，只是降低僵硬和恢复压力。"
       },
       travel: {
-        title: "出差弹力带版",
-        text: "用于酒店、办公室、探亲等没有瑜伽垫但能带弹力带的场景。用椅子/床边/墙完成，保留弹力带划船；短带侧步小腿或大腿外侧紧时直接跳过。"
+        title: "出差酒店训练",
+        text: "用于酒店、办公室、探亲等没有瑜伽垫的场景。打开有弹力带时保留划船和侧步；没有弹力带时自动换成夹背和抱枕动作。"
       },
       seat: {
         title: "车厢座位恢复版",
@@ -1481,6 +1566,8 @@
       beep: document.getElementById("beep"),
       wake: document.getElementById("wake"),
       wakeText: document.getElementById("wakeText"),
+      calfCare: document.getElementById("calfCare"),
+      hasBand: document.getElementById("hasBand"),
       status: document.getElementById("status"),
       phase: document.getElementById("phase"),
       count: document.getElementById("count"),
@@ -1508,17 +1595,40 @@
       const restSeconds = Number(el.rest.value);
       const preset = el.preset.value;
       const steps = [];
+      const simplePlans = {
+        walkWarmup,
+        walkStretchQuick,
+        walkStretchFull,
+        recoveryStretch,
+        seat: seatRoutine
+      };
 
-      if (preset === "seat") {
-        seatRoutine.forEach(item => steps.push(toStep(item)));
+      if (simplePlans[preset]) {
+        simplePlans[preset].forEach(item => steps.push(toStep(item)));
         steps.push(toStep(["finish", 1, "完成"]));
         return steps;
       }
 
-      const warmup = preset === "travel" ? travelWarmup : baseWarmup;
-      const stretch = preset === "travel" ? travelStretch : baseStretch;
-      const round = preset === "travel" ? roundTravel : preset === "calfSafe" ? roundCalfSafe : preset === "low" ? roundLow : roundStandard;
-      const rounds = preset === "low" ? 1 : 2;
+      const isTravel = preset === "travel";
+      const warmup = isTravel ? travelWarmup : baseWarmup;
+      const stretch = isTravel ? travelStretch : baseStretch;
+      let round = roundStandard;
+      let rounds = 2;
+
+      if (preset === "strengthShort") {
+        round = roundLow;
+        rounds = 1;
+      }
+      if (preset === "strength" && el.calfCare.checked) {
+        round = roundCalfSafe;
+      }
+      if (isTravel) {
+        round = el.hasBand.checked ? roundTravelBand : roundTravelNoBand;
+        rounds = 1;
+        if (el.calfCare.checked) {
+          round = round.filter(item => !["sideStep", "calfRaise"].includes(item[0]));
+        }
+      }
 
       warmup.forEach(item => steps.push(toStep(item)));
       for (let r = 1; r <= rounds; r++) {
@@ -1532,7 +1642,7 @@
             steps.push(rest);
           }
         });
-        if (preset === "standard") {
+        if (preset === "strength" && !el.calfCare.checked) {
           const finisher = toStep(["marchFast", 60, "密度"]);
           finisher.round = r;
           steps.push(finisher);
@@ -1571,6 +1681,7 @@
     }
 
     function rebuild(resetIndex = true) {
+      updateConditionControls();
       state.steps = makeSteps();
       if (resetIndex) {
         state.index = 0;
@@ -1635,8 +1746,15 @@
       const actions = state.steps.filter(step => !["rest", "finish"].includes(step.key)).length;
       el.totalTime.textContent = `${Math.round(seconds / 60)} 分`;
       el.workCount.textContent = `${actions} 项`;
-      const note = presetNotes[el.preset.value] || presetNotes.standard;
-      el.planNote.innerHTML = `<b>${note.title}</b>${note.text}`;
+      const note = presetNotes[el.preset.value] || presetNotes.strength;
+      const extras = [];
+      if (el.calfCare.checked && ["strength", "travel"].includes(el.preset.value)) {
+        extras.push("已开启小腿保护：减少侧向刺激和小腿密度，疼痛时仍应直接跳过相关动作。");
+      }
+      if (el.preset.value === "travel") {
+        extras.push(el.hasBand.checked ? "出差训练将使用弹力带划船；短带侧步小腿紧时可跳过。" : "未带弹力带：已替换为不依赖器具的胸背动作。");
+      }
+      el.planNote.innerHTML = `<b>${note.title}</b>${note.text}${extras.length ? `<br><br>${extras.join(" ")}` : ""}`;
     }
 
     function updateStartButton() {
@@ -1647,6 +1765,16 @@
         el.startText.textContent = state.started ? "继续" : "开始";
         el.startIcon.setAttribute("d", "M8 5v14l11-7z");
       }
+    }
+
+    function updateConditionControls() {
+      const preset = el.preset.value;
+      const calfRelevant = ["strength", "travel"].includes(preset);
+      const bandRelevant = preset === "travel";
+      el.calfCare.disabled = !calfRelevant;
+      el.hasBand.disabled = !bandRelevant;
+      el.calfCare.closest(".toggle").classList.toggle("disabled", !calfRelevant);
+      el.hasBand.closest(".toggle").classList.toggle("disabled", !bandRelevant);
     }
 
     function canUseWakeLock() {
@@ -1811,6 +1939,8 @@
     el.rest.addEventListener("change", () => rebuild(true));
     el.voice.addEventListener("change", render);
     el.beep.addEventListener("change", render);
+    el.calfCare.addEventListener("change", () => rebuild(true));
+    el.hasBand.addEventListener("change", () => rebuild(true));
     el.wake.addEventListener("change", () => {
       updateWakeLabel();
       if (state.running && el.wake.checked) requestWakeLock();
