@@ -460,6 +460,41 @@
       color: var(--ink);
     }
 
+    .scene-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .scene-btn {
+      min-width: 0;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #ffffff;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
+    }
+
+    .scene-btn:hover {
+      background: #fbfdfc;
+      border-color: #ccd9d1;
+      color: var(--ink);
+    }
+
+    .scene-btn.active {
+      background: var(--green-soft);
+      border-color: #bdd6c8;
+      color: var(--green-dark);
+    }
+
+    .scene-btn:active {
+      transform: scale(.98);
+    }
+
     .toggles {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
@@ -929,6 +964,10 @@
         grid-template-columns: 1fr 1fr;
       }
 
+      .scene-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
       .side {
         padding: 12px;
         box-shadow: var(--shadow);
@@ -970,6 +1009,10 @@
       .summary {
         grid-template-columns: 1fr;
       }
+
+      .scene-grid {
+        grid-template-columns: 1fr 1fr;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -983,6 +1026,7 @@
       .controls,
       .queue,
       .btn,
+      .scene-btn,
       .toggle,
       .queue-item {
         transition: none;
@@ -1065,18 +1109,17 @@
     <aside class="side">
       <section class="settings">
         <div class="setting">
-          <label for="preset">训练版本</label>
-          <select id="preset">
-            <option value="strength">居家力量标准版：2轮</option>
-            <option value="strengthShort">居家力量短版：忙/晚用</option>
-            <option value="indoorCardio">雨天室内有氧：低冲击</option>
-            <option value="walkWarmup">公园健走前热身</option>
-            <option value="walkStretchQuick">健走后最低拉伸</option>
-            <option value="walkStretchFull">健走后完整拉伸</option>
-            <option value="recoveryStretch">状态差恢复拉伸</option>
-            <option value="travel">出差酒店训练</option>
-            <option value="seat">车厢座位恢复版：火车/飞机</option>
-          </select>
+          <label>训练场景</label>
+          <div class="scene-grid" role="tablist" aria-label="训练场景">
+            <button class="scene-btn active" type="button" data-scene="home">居家</button>
+            <button class="scene-btn" type="button" data-scene="walk">健走</button>
+            <button class="scene-btn" type="button" data-scene="recovery">恢复</button>
+            <button class="scene-btn" type="button" data-scene="travel">出行</button>
+          </div>
+        </div>
+        <div class="setting">
+          <label for="preset">具体流程</label>
+          <select id="preset"></select>
         </div>
         <div class="setting">
           <label for="rest">动作间休息</label>
@@ -1102,7 +1145,7 @@
 
       <section class="plan-note" id="planNote">
         <b>本版调整</b>
-        2.2 版加入雨天室内有氧，用来替代不能出门走路的日子；小腿保护打开时会自动降低侧向和小腿负荷。
+        2.3 版改为两级入口：先选场景，再选具体流程，避免训练列表继续变长。
       </section>
 
       <section class="queue">
@@ -1567,6 +1610,31 @@
       ["seatedBreath", 60, "恢复"]
     ];
 
+    const planGroups = {
+      home: [
+        { value: "strength", label: "力量标准版：2轮" },
+        { value: "strengthShort", label: "力量短版：忙/晚用" },
+        { value: "indoorCardio", label: "雨天室内有氧" }
+      ],
+      walk: [
+        { value: "walkWarmup", label: "健走前热身" },
+        { value: "walkStretchQuick", label: "走后最低拉伸" },
+        { value: "walkStretchFull", label: "走后完整拉伸" }
+      ],
+      recovery: [
+        { value: "recoveryStretch", label: "状态差恢复拉伸" }
+      ],
+      travel: [
+        { value: "travel", label: "出差酒店训练" },
+        { value: "seat", label: "车厢座位恢复" }
+      ]
+    };
+
+    const planSceneByPreset = Object.entries(planGroups).reduce((map, [scene, plans]) => {
+      plans.forEach(plan => { map[plan.value] = scene; });
+      return map;
+    }, {});
+
     const presetNotes = {
       strength: {
         title: "居家力量标准版 2.1",
@@ -1613,6 +1681,7 @@
       running: false,
       timer: null,
       started: false,
+      scene: "home",
       lastTick: 0,
       wakeLock: null
     };
@@ -1626,6 +1695,7 @@
       wakeText: document.getElementById("wakeText"),
       calfCare: document.getElementById("calfCare"),
       hasBand: document.getElementById("hasBand"),
+      sceneButtons: Array.from(document.querySelectorAll("[data-scene]")),
       status: document.getElementById("status"),
       phase: document.getElementById("phase"),
       count: document.getElementById("count"),
@@ -1648,6 +1718,28 @@
       workCount: document.getElementById("workCount"),
       planNote: document.getElementById("planNote")
     };
+
+    function updateSceneButtons() {
+      el.sceneButtons.forEach(button => {
+        const active = button.dataset.scene === state.scene;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+      });
+    }
+
+    function populatePreset(scene, preferredValue) {
+      const plans = planGroups[scene] || planGroups.home;
+      const nextValue = plans.some(plan => plan.value === preferredValue) ? preferredValue : plans[0].value;
+      el.preset.replaceChildren(...plans.map(plan => {
+        const option = document.createElement("option");
+        option.value = plan.value;
+        option.textContent = plan.label;
+        return option;
+      }));
+      el.preset.value = nextValue;
+      state.scene = scene;
+      updateSceneButtons();
+    }
 
     function makeSteps() {
       const restSeconds = Number(el.rest.value);
@@ -1994,7 +2086,18 @@
     el.nextBtn.addEventListener("click", () => nextStep(false));
     el.prevBtn.addEventListener("click", prevStep);
     el.resetBtn.addEventListener("click", resetAll);
-    el.preset.addEventListener("change", () => rebuild(true));
+    el.sceneButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        if (button.dataset.scene === state.scene) return;
+        populatePreset(button.dataset.scene);
+        rebuild(true);
+      });
+    });
+    el.preset.addEventListener("change", () => {
+      state.scene = planSceneByPreset[el.preset.value] || state.scene;
+      updateSceneButtons();
+      rebuild(true);
+    });
     el.rest.addEventListener("change", () => rebuild(true));
     el.voice.addEventListener("change", render);
     el.beep.addEventListener("change", render);
@@ -2024,6 +2127,7 @@
 
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
+    populatePreset("home", "strength");
     updateWakeLabel();
     rebuild(true);
 
