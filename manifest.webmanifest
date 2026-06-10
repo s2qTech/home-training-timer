@@ -1,7 +1,7 @@
 {
   "name": "训练与拉伸计时器",
   "short_name": "训练计时器",
-  "description": "按场景和流程两级选择，自动切换走前、走后、室内有氧、力量、出行和恢复动作。",
+  "description": "按场景选择训练，记录最近 7 天运动，并根据实际完成情况给出今日建议。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
