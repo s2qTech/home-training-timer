@@ -1069,6 +1069,7 @@
           <select id="preset">
             <option value="strength">居家力量标准版：2轮</option>
             <option value="strengthShort">居家力量短版：忙/晚用</option>
+            <option value="indoorCardio">雨天室内有氧：低冲击</option>
             <option value="walkWarmup">公园健走前热身</option>
             <option value="walkStretchQuick">健走后最低拉伸</option>
             <option value="walkStretchFull">健走后完整拉伸</option>
@@ -1101,7 +1102,7 @@
 
       <section class="plan-note" id="planNote">
         <b>本版调整</b>
-        2.1 版改为场景入口：走前、走后、状态差、居家力量、出差训练。小腿保护和弹力带改成条件开关，不再单独占一个版本。
+        2.2 版加入雨天室内有氧，用来替代不能出门走路的日子；小腿保护打开时会自动降低侧向和小腿负荷。
       </section>
 
       <section class="queue">
@@ -1131,10 +1132,17 @@
       },
       marchFast: {
         name: "原地小步快走",
-        dose: "60 秒",
+        dose: "60-120 秒",
         cues: ["小步、轻落地，脚步比热身稍快。", "手臂自然前后摆，不跑不跳。", "让心率稍微上来即可。"],
         warnings: ["左小腿不适时跳过。", "不要高抬腿，不要跺脚。"],
         breath: "呼吸：变深可以，不能喘乱。"
+      },
+      sideShift: {
+        name: "左右轻移步",
+        dose: "45-60 秒",
+        cues: ["双脚小幅左右移动，像在窄走廊里轻轻横移。", "脚尖朝前，膝盖跟脚尖同方向。", "身体保持直，不左右甩腰。"],
+        warnings: ["不是跳步，不要弹跳。", "小腿、大腿外侧或膝盖不适就跳过。"],
+        breath: "呼吸：能说短句，不能乱喘。"
       },
       shoulderCircles: {
         name: "肩膀绕圈",
@@ -1397,6 +1405,52 @@
       ["hipHingeWarm", 50, "热身"]
     ];
 
+    const indoorCardio = [
+      ["slowWalk", 180, "热身"],
+      ["heelToeRock", 50, "热身"],
+      ["marchFast", 120, "室内有氧"],
+      ["sideShift", 60, "室内有氧"],
+      ["slowWalk", 60, "恢复"],
+      ["standingW", 50, "姿态"],
+      ["heelToeRock", 40, "循环"],
+      ["marchFast", 120, "室内有氧"],
+      ["sideShift", 60, "室内有氧"],
+      ["slowWalk", 60, "恢复"],
+      ["standingW", 50, "姿态"],
+      ["heelToeRock", 40, "循环"],
+      ["marchFast", 120, "室内有氧"],
+      ["sideShift", 60, "室内有氧"],
+      ["slowWalk", 60, "恢复"],
+      ["standingW", 50, "姿态"],
+      ["heelToeRock", 40, "循环"],
+      ["coolWalk", 120, "冷身"],
+      ["calfStraight", 70, "拉伸"],
+      ["calfBent", 70, "拉伸"],
+      ["hamstring", 60, "拉伸"],
+      ["doorway", 50, "拉伸"]
+    ];
+
+    const indoorCardioCare = [
+      ["slowWalk", 180, "热身"],
+      ["heelToeRock", 50, "热身"],
+      ["marchFast", 90, "室内有氧"],
+      ["slowWalk", 70, "恢复"],
+      ["standingW", 50, "姿态"],
+      ["heelToeRock", 35, "循环"],
+      ["marchFast", 90, "室内有氧"],
+      ["slowWalk", 70, "恢复"],
+      ["standingW", 50, "姿态"],
+      ["heelToeRock", 35, "循环"],
+      ["marchFast", 90, "室内有氧"],
+      ["slowWalk", 70, "恢复"],
+      ["standingW", 50, "姿态"],
+      ["heelToeRock", 35, "循环"],
+      ["coolWalk", 120, "冷身"],
+      ["calfStraight", 70, "拉伸"],
+      ["calfBent", 70, "拉伸"],
+      ["hamstring", 60, "拉伸"]
+    ];
+
     const walkStretchQuick = [
       ["coolWalk", 180, "冷身"],
       ["calfStraight", 70, "拉伸"],
@@ -1522,6 +1576,10 @@
         title: "居家力量短版",
         text: "用于忙、晚、累但还想维持力量触感的日子。只做 1 轮，不补课，不追心率。"
       },
+      indoorCardio: {
+        title: "雨天室内有氧",
+        text: "用于连续下雨或不能出门走路的日子。它不是力量日，目标是低冲击补有氧：呼吸变深、能说短句，不跳、不跑、不跺脚。"
+      },
       walkWarmup: {
         title: "公园健走前热身",
         text: "用于到公园后、正式开始记录前。目标是让踝、小腿、髋和上背慢慢进入状态，不追出汗。"
@@ -1596,6 +1654,7 @@
       const preset = el.preset.value;
       const steps = [];
       const simplePlans = {
+        indoorCardio: el.calfCare.checked ? indoorCardioCare : indoorCardio,
         walkWarmup,
         walkStretchQuick,
         walkStretchFull,
@@ -1748,7 +1807,7 @@
       el.workCount.textContent = `${actions} 项`;
       const note = presetNotes[el.preset.value] || presetNotes.strength;
       const extras = [];
-      if (el.calfCare.checked && ["strength", "travel"].includes(el.preset.value)) {
+      if (el.calfCare.checked && ["strength", "indoorCardio", "travel"].includes(el.preset.value)) {
         extras.push("已开启小腿保护：减少侧向刺激和小腿密度，疼痛时仍应直接跳过相关动作。");
       }
       if (el.preset.value === "travel") {
@@ -1769,7 +1828,7 @@
 
     function updateConditionControls() {
       const preset = el.preset.value;
-      const calfRelevant = ["strength", "travel"].includes(preset);
+      const calfRelevant = ["strength", "indoorCardio", "travel"].includes(preset);
       const bandRelevant = preset === "travel";
       el.calfCare.disabled = !calfRelevant;
       el.hasBand.disabled = !bandRelevant;

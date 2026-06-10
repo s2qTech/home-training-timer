@@ -1,7 +1,7 @@
 {
   "name": "训练与拉伸计时器",
   "short_name": "训练计时器",
-  "description": "按走前、走后、居家力量、出差和恢复场景自动切换动作，支持条件开关和训练常亮。",
+  "description": "按走前、走后、雨天室内有氧、居家力量、出差和恢复场景自动切换动作。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
