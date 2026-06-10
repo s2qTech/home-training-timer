@@ -540,127 +540,6 @@
       gap: 8px;
     }
 
-    .daily-card {
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: #ffffff;
-      box-shadow: none;
-      display: grid;
-      gap: 10px;
-    }
-
-    .daily-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .daily-head h2 {
-      margin: 0;
-      font-size: 17px;
-      line-height: 1.25;
-    }
-
-    .daily-tag {
-      padding: 5px 8px;
-      border-radius: 999px;
-      background: var(--green-soft);
-      color: var(--green-dark);
-      font-size: 12px;
-      font-weight: 900;
-      white-space: nowrap;
-    }
-
-    .daily-text {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.55;
-    }
-
-    .daily-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .mini-btn {
-      min-height: 38px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: #fbfcfb;
-      color: var(--ink);
-      font-size: 13px;
-      font-weight: 900;
-      cursor: pointer;
-      transition: background .16s ease, border-color .16s ease, transform .16s ease;
-    }
-
-    .mini-btn:hover {
-      background: #ffffff;
-      border-color: #ccd9d1;
-    }
-
-    .mini-btn:active {
-      transform: scale(.98);
-    }
-
-    .mini-btn.primary {
-      background: var(--green);
-      border-color: var(--green);
-      color: #ffffff;
-    }
-
-    .mini-btn.warn {
-      background: var(--orange-soft);
-      border-color: #f2dfb7;
-      color: var(--orange);
-    }
-
-    .log-row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      align-items: end;
-    }
-
-    .log-row select {
-      min-height: 38px;
-    }
-
-    .history-list {
-      display: grid;
-      gap: 6px;
-    }
-
-    .history-item {
-      display: grid;
-      grid-template-columns: 58px 1fr;
-      gap: 8px;
-      align-items: center;
-      padding: 7px 8px;
-      border-radius: 10px;
-      background: #fbfcfb;
-      border: 1px solid #edf1ee;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .history-item b {
-      color: var(--ink);
-      font-size: 13px;
-    }
-
-    .history-note {
-      grid-column: 2;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
     .metric {
       padding: 10px;
       border-radius: var(--radius);
@@ -1089,11 +968,6 @@
         grid-template-columns: 1fr 1fr;
       }
 
-      .daily-actions,
-      .log-row {
-        grid-template-columns: 1fr;
-      }
-
       .side {
         padding: 12px;
         box-shadow: var(--shadow);
@@ -1153,7 +1027,6 @@
       .queue,
       .btn,
       .scene-btn,
-      .mini-btn,
       .toggle,
       .queue-item {
         transition: none;
@@ -1234,33 +1107,6 @@
     </main>
 
     <aside class="side">
-      <section class="daily-card" aria-label="今日训练记录">
-        <div class="daily-head">
-          <h2>今日建议</h2>
-          <span class="daily-tag" id="adviceTag">计算中</span>
-        </div>
-        <p class="daily-text" id="adviceText">根据最近 7 天记录生成建议。没有记录时，默认从力量或普通走开始。</p>
-        <div class="daily-actions">
-          <button class="mini-btn primary" id="useAdviceBtn" type="button">采用建议</button>
-          <button class="mini-btn" id="recordTodayBtn" type="button">记录今天</button>
-        </div>
-        <div class="setting">
-          <label for="logType">今天实际做了</label>
-          <div class="log-row">
-            <select id="logType">
-              <option value="strength">力量训练</option>
-              <option value="easyWalk">普通走 / 轻松走</option>
-              <option value="qualityWalk">提高走 / 冲 1 公里</option>
-              <option value="indoorCardio">室内有氧</option>
-              <option value="recovery">拉伸 / 恢复</option>
-              <option value="rest">休息 / 未运动</option>
-            </select>
-            <button class="mini-btn warn" id="clearTodayBtn" type="button">清除</button>
-          </div>
-        </div>
-        <div class="history-list" id="historyList"></div>
-      </section>
-
       <section class="settings">
         <div class="setting">
           <label>训练场景</label>
@@ -1299,7 +1145,7 @@
 
       <section class="plan-note" id="planNote">
         <b>本版调整</b>
-        2.4 版加入本地训练记录和今日建议。建议会按最近 7 天实际记录重新计算，计划被打乱也不用补课。
+        2.5 版恢复为纯计时器。日历、建议和长期数据会放到 v2 独立项目里处理。
       </section>
 
       <section class="queue">
@@ -1789,62 +1635,6 @@
       return map;
     }, {});
 
-    const LOG_KEY = "trainingLogV1";
-
-    const logTypes = {
-      strength: { label: "力量训练", short: "力量" },
-      easyWalk: { label: "普通走 / 轻松走", short: "普通走" },
-      qualityWalk: { label: "提高走 / 冲 1 公里", short: "提高走" },
-      indoorCardio: { label: "室内有氧", short: "室内有氧" },
-      recovery: { label: "拉伸 / 恢复", short: "恢复" },
-      rest: { label: "休息 / 未运动", short: "休息" }
-    };
-
-    const presetLogTypes = {
-      strength: "strength",
-      strengthShort: "strength",
-      indoorCardio: "indoorCardio",
-      walkWarmup: "easyWalk",
-      walkStretchQuick: "recovery",
-      walkStretchFull: "recovery",
-      recoveryStretch: "recovery",
-      travel: "strength",
-      seat: "recovery"
-    };
-
-    const advicePlans = {
-      strength: {
-        tag: "力量",
-        preset: "strength",
-        text: "建议做居家力量标准版。目标是维持每周 2 次力量，不追暴汗，动作质量优先。"
-      },
-      easyWalk: {
-        tag: "普通走",
-        preset: "walkWarmup",
-        text: "建议普通走或轻松走。先做健走前热身，走完按实际情况记录为普通走；下雨可改成室内有氧。"
-      },
-      qualityWalk: {
-        tag: "提高走",
-        preset: "walkWarmup",
-        text: "建议做一次提高走：只冲 1 公里，前后都要留普通走缓冲。走完记录为提高走。"
-      },
-      indoorCardio: {
-        tag: "室内",
-        preset: "indoorCardio",
-        text: "建议做雨天室内有氧。它替代走路，不算力量日；小腿不舒服就打开小腿保护。"
-      },
-      recovery: {
-        tag: "恢复",
-        preset: "recoveryStretch",
-        text: "建议做状态差恢复拉伸。今天不追训练量，目标是让腰背、小腿和肩颈恢复。"
-      },
-      rest: {
-        tag: "休息",
-        preset: "recoveryStretch",
-        text: "建议休息或只做几分钟轻拉伸。休息也要记录，后续建议会自动往前排。"
-      }
-    };
-
     const presetNotes = {
       strength: {
         title: "居家力量标准版 2.1",
@@ -1926,14 +1716,7 @@
       resetBtn: document.getElementById("resetBtn"),
       totalTime: document.getElementById("totalTime"),
       workCount: document.getElementById("workCount"),
-      planNote: document.getElementById("planNote"),
-      adviceTag: document.getElementById("adviceTag"),
-      adviceText: document.getElementById("adviceText"),
-      useAdviceBtn: document.getElementById("useAdviceBtn"),
-      recordTodayBtn: document.getElementById("recordTodayBtn"),
-      clearTodayBtn: document.getElementById("clearTodayBtn"),
-      logType: document.getElementById("logType"),
-      historyList: document.getElementById("historyList")
+      planNote: document.getElementById("planNote")
     };
 
     function updateSceneButtons() {
@@ -1956,180 +1739,6 @@
       el.preset.value = nextValue;
       state.scene = scene;
       updateSceneButtons();
-    }
-
-    function planLabel(preset) {
-      for (const plans of Object.values(planGroups)) {
-        const found = plans.find(plan => plan.value === preset);
-        if (found) return found.label;
-      }
-      return "";
-    }
-
-    function selectPreset(preset) {
-      const scene = planSceneByPreset[preset] || "home";
-      populatePreset(scene, preset);
-      rebuild(true);
-    }
-
-    function todayKey(offset = 0) {
-      const date = new Date();
-      date.setDate(date.getDate() + offset);
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, "0");
-      const d = String(date.getDate()).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    }
-
-    function parseDateKey(key) {
-      const [y, m, d] = key.split("-").map(Number);
-      return new Date(y, m - 1, d);
-    }
-
-    function daysBetween(a, b) {
-      const oneDay = 24 * 60 * 60 * 1000;
-      return Math.round((parseDateKey(a) - parseDateKey(b)) / oneDay);
-    }
-
-    function loadLogs() {
-      try {
-        const raw = window.localStorage.getItem(LOG_KEY);
-        const logs = raw ? JSON.parse(raw) : [];
-        return Array.isArray(logs) ? logs.filter(log => log && log.date && log.type) : [];
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function saveLogs(logs) {
-      try {
-        const sorted = logs
-          .filter(log => log && log.date && log.type)
-          .sort((a, b) => a.date.localeCompare(b.date))
-          .slice(-120);
-        window.localStorage.setItem(LOG_KEY, JSON.stringify(sorted));
-      } catch (e) {
-        // Local logging is optional.
-      }
-    }
-
-    function getTodayLog(logs = loadLogs()) {
-      const key = todayKey();
-      return logs.find(log => log.date === key);
-    }
-
-    function recentLogs(days = 7, includeToday = false) {
-      const logs = loadLogs();
-      const today = todayKey();
-      return logs
-        .filter(log => includeToday || log.date !== today)
-        .filter(log => {
-          const diff = daysBetween(today, log.date);
-          return diff >= 0 && diff < days;
-        })
-        .sort((a, b) => b.date.localeCompare(a.date));
-    }
-
-    function countLogTypes(logs) {
-      return logs.reduce((counts, log) => {
-        counts[log.type] = (counts[log.type] || 0) + 1;
-        return counts;
-      }, {});
-    }
-
-    function daysSinceType(logs, type) {
-      const found = logs.find(log => log.type === type);
-      return found ? daysBetween(todayKey(), found.date) : Infinity;
-    }
-
-    function recommendation() {
-      const logs = loadLogs();
-      const todayLog = getTodayLog(logs);
-      if (todayLog) {
-        return {
-          type: todayLog.type,
-          locked: true,
-          tag: "已记录",
-          preset: advicePlans[todayLog.type]?.preset || "recoveryStretch",
-          text: `今天已记录：${logTypes[todayLog.type]?.label || todayLog.type}。如果实际做的不一样，改下方选项后再点“记录今天”即可覆盖。`
-        };
-      }
-
-      const recent = recentLogs(7, false);
-      const counts = countLogTypes(recent);
-      const yesterday = logs.find(log => log.date === todayKey(-1));
-      const hardYesterday = yesterday && ["strength", "qualityWalk"].includes(yesterday.type);
-      const strengthCount = counts.strength || 0;
-      const qualityCount = counts.qualityWalk || 0;
-      const aerobicCount = (counts.easyWalk || 0) + (counts.qualityWalk || 0) + (counts.indoorCardio || 0);
-      const recoveryCount = (counts.recovery || 0) + (counts.rest || 0);
-      const strengthGap = daysSinceType(recent, "strength");
-
-      if (hardYesterday) {
-        const type = recoveryCount < 1 ? "recovery" : "easyWalk";
-        return { type, ...advicePlans[type], text: `${advicePlans[type].text} 昨天已经有强度，今天先把恢复放在前面。` };
-      }
-      if (strengthCount < 2 && strengthGap > 1) {
-        return { type: "strength", ...advicePlans.strength };
-      }
-      if (aerobicCount < 3) {
-        return { type: "easyWalk", ...advicePlans.easyWalk };
-      }
-      if (qualityCount < 1) {
-        return { type: "qualityWalk", ...advicePlans.qualityWalk };
-      }
-      if (recoveryCount < 1) {
-        return { type: "recovery", ...advicePlans.recovery };
-      }
-      return { type: "easyWalk", ...advicePlans.easyWalk, text: "本周结构基本够了，建议普通走或轻松走，维持连续性即可。" };
-    }
-
-    function recordToday(type) {
-      const logs = loadLogs().filter(log => log.date !== todayKey());
-      const currentPresetMatchesType = presetLogTypes[el.preset.value] === type;
-      const presetForLog = ["strength", "indoorCardio", "recovery"].includes(type) && currentPresetMatchesType ? el.preset.value : "";
-      logs.push({
-        date: todayKey(),
-        type,
-        preset: presetForLog,
-        scene: presetForLog ? state.scene : "",
-        recordedAt: new Date().toISOString()
-      });
-      saveLogs(logs);
-      renderLogPanel();
-    }
-
-    function clearTodayLog() {
-      saveLogs(loadLogs().filter(log => log.date !== todayKey()));
-      renderLogPanel();
-    }
-
-    function shortDateLabel(key) {
-      const diff = daysBetween(todayKey(), key);
-      if (diff === 0) return "今天";
-      if (diff === 1) return "昨天";
-      const date = parseDateKey(key);
-      return `${date.getMonth() + 1}/${date.getDate()}`;
-    }
-
-    function renderLogPanel() {
-      const rec = recommendation();
-      const todayLog = getTodayLog();
-      el.adviceTag.textContent = rec.tag || advicePlans[rec.type]?.tag || "建议";
-      el.adviceText.textContent = rec.text;
-      el.logType.value = todayLog ? todayLog.type : rec.type;
-      el.useAdviceBtn.disabled = Boolean(rec.locked);
-      el.useAdviceBtn.textContent = rec.locked ? "已记录" : "采用建议";
-
-      const logs = loadLogs();
-      el.historyList.innerHTML = Array.from({ length: 7 }, (_, i) => {
-        const key = todayKey(-i);
-        const log = logs.find(item => item.date === key);
-        const label = log ? (logTypes[log.type]?.short || log.type) : "未记录";
-        const plan = log && log.preset ? planLabel(log.preset) : "";
-        const detail = log ? `${logTypes[log.type]?.label || log.type}${plan ? ` · ${plan}` : ""}` : "当天还没有健身记录";
-        return `<div class="history-item"><span>${shortDateLabel(key)}</span><b>${label}</b><span class="history-note">${detail}</span></div>`;
-      }).join("");
     }
 
     function makeSteps() {
@@ -2477,14 +2086,6 @@
     el.nextBtn.addEventListener("click", () => nextStep(false));
     el.prevBtn.addEventListener("click", prevStep);
     el.resetBtn.addEventListener("click", resetAll);
-    el.useAdviceBtn.addEventListener("click", () => {
-      const rec = recommendation();
-      if (rec.locked) return;
-      selectPreset(rec.preset);
-      el.logType.value = rec.type;
-    });
-    el.recordTodayBtn.addEventListener("click", () => recordToday(el.logType.value));
-    el.clearTodayBtn.addEventListener("click", clearTodayLog);
     el.sceneButtons.forEach(button => {
       button.addEventListener("click", () => {
         if (button.dataset.scene === state.scene) return;
@@ -2529,7 +2130,6 @@
     populatePreset("home", "strength");
     updateWakeLabel();
     rebuild(true);
-    renderLogPanel();
 
     window.addEventListener("load", () => {
       window.setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }), 0);

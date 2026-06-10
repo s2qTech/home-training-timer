@@ -1,4 +1,4 @@
-const CACHE_NAME = "home-strength-timer-v14";
+const CACHE_NAME = "home-strength-timer-v15";
 const ASSETS = [
   "./",
   "./index.html",
