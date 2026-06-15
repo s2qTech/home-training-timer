@@ -1145,7 +1145,7 @@
 
       <section class="plan-note" id="planNote">
         <b>本版调整</b>
-        2.6 版把猫牛式、鸟狗式、墙面俯卧撑恢复为标准版优先；保护版只作为疼痛或不稳时的替代。
+        2.8 版重排力量：标准版足量 2 轮，短版改为密度 2 轮；保护开关只在不适时降级。
       </section>
 
       <section class="queue">
@@ -1175,17 +1175,24 @@
       },
       marchFast: {
         name: "原地小步快走",
-        dose: "60-120 秒",
+        dose: "2-4 分钟",
         cues: ["小步、轻落地，脚步比热身稍快。", "手臂自然前后摆，不跑不跳。", "让心率稍微上来即可。"],
         warnings: ["左小腿不适时跳过。", "不要高抬腿，不要跺脚。"],
         breath: "呼吸：变深可以，不能喘乱。"
       },
       sideShift: {
         name: "左右轻移步",
-        dose: "45-60 秒",
+        dose: "1-2 分钟",
         cues: ["双脚小幅左右移动，像在窄走廊里轻轻横移。", "脚尖朝前，膝盖跟脚尖同方向。", "身体保持直，不左右甩腰。"],
         warnings: ["不是跳步，不要弹跳。", "小腿、大腿外侧或膝盖不适就跳过。"],
         breath: "呼吸：能说短句，不能乱喘。"
+      },
+      shadowPunch: {
+        name: "站姿连续冲拳",
+        dose: "90-120 秒",
+        cues: ["双脚站稳，膝盖微松。", "左右手交替向前轻快出拳，拳头到胸口高度即可。", "核心轻收，身体不左右乱扭。"],
+        warnings: ["不要锁死膝盖。", "肩颈不要耸。", "手腕保持直，肩痛或手腕痛就改成小幅摆臂。"],
+        breath: "呼吸：节奏稳定，能说短句。"
       },
       shoulderCircles: {
         name: "肩膀绕圈",
@@ -1438,6 +1445,15 @@
       ["hipHingeWarm", 60, "热身"]
     ];
 
+    const strengthShortWarmup = [
+      ["slowWalk", 90, "热身"],
+      ["shoulderCircles", 40, "热身"],
+      ["scapula", 45, "热身"],
+      ["deskCatCow", 50, "热身"],
+      ["ankle", 45, "热身"],
+      ["hipHingeWarm", 50, "热身"]
+    ];
+
     const walkWarmup = [
       ["slowWalk", 90, "热身"],
       ["shoulderCircles", 40, "热身"],
@@ -1450,48 +1466,65 @@
 
     const indoorCardio = [
       ["slowWalk", 180, "热身"],
-      ["heelToeRock", 50, "热身"],
-      ["marchFast", 120, "室内有氧"],
-      ["sideShift", 60, "室内有氧"],
-      ["slowWalk", 60, "恢复"],
-      ["standingW", 50, "姿态"],
+      ["shoulderCircles", 50, "热身"],
+      ["scapula", 50, "热身"],
+      ["thoracicTurn", 50, "热身"],
+      ["heelToeRock", 60, "热身"],
+      ["hipHingeWarm", 50, "热身"],
+      ["marchFast", 240, "室内有氧"],
+      ["sideShift", 120, "室内有氧"],
+      ["shadowPunch", 120, "室内有氧"],
+      ["slowWalk", 90, "恢复"],
+      ["standingW", 60, "姿态"],
       ["heelToeRock", 40, "循环"],
-      ["marchFast", 120, "室内有氧"],
-      ["sideShift", 60, "室内有氧"],
-      ["slowWalk", 60, "恢复"],
-      ["standingW", 50, "姿态"],
+      ["marchFast", 240, "室内有氧"],
+      ["sideShift", 120, "室内有氧"],
+      ["shadowPunch", 120, "室内有氧"],
+      ["slowWalk", 90, "恢复"],
+      ["standingW", 60, "姿态"],
       ["heelToeRock", 40, "循环"],
-      ["marchFast", 120, "室内有氧"],
-      ["sideShift", 60, "室内有氧"],
-      ["slowWalk", 60, "恢复"],
-      ["standingW", 50, "姿态"],
+      ["marchFast", 240, "室内有氧"],
+      ["sideShift", 120, "室内有氧"],
+      ["shadowPunch", 120, "室内有氧"],
+      ["slowWalk", 90, "恢复"],
+      ["standingW", 60, "姿态"],
       ["heelToeRock", 40, "循环"],
-      ["coolWalk", 120, "冷身"],
+      ["coolWalk", 180, "冷身"],
       ["calfStraight", 70, "拉伸"],
       ["calfBent", 70, "拉伸"],
-      ["hamstring", 60, "拉伸"],
-      ["doorway", 50, "拉伸"]
+      ["hamstring", 70, "拉伸"],
+      ["gluteStretch", 70, "拉伸"],
+      ["doorway", 60, "拉伸"],
+      ["singleKneeHug", 90, "恢复"]
     ];
 
     const indoorCardioCare = [
       ["slowWalk", 180, "热身"],
-      ["heelToeRock", 50, "热身"],
-      ["marchFast", 90, "室内有氧"],
-      ["slowWalk", 70, "恢复"],
-      ["standingW", 50, "姿态"],
-      ["heelToeRock", 35, "循环"],
-      ["marchFast", 90, "室内有氧"],
-      ["slowWalk", 70, "恢复"],
-      ["standingW", 50, "姿态"],
-      ["heelToeRock", 35, "循环"],
-      ["marchFast", 90, "室内有氧"],
-      ["slowWalk", 70, "恢复"],
-      ["standingW", 50, "姿态"],
-      ["heelToeRock", 35, "循环"],
-      ["coolWalk", 120, "冷身"],
+      ["shoulderCircles", 50, "热身"],
+      ["scapula", 50, "热身"],
+      ["thoracicTurn", 50, "热身"],
+      ["heelToeRock", 60, "热身"],
+      ["marchFast", 180, "室内有氧"],
+      ["shadowPunch", 120, "室内有氧"],
+      ["slowWalk", 90, "恢复"],
+      ["standingW", 60, "姿态"],
+      ["heelToeRock", 45, "循环"],
+      ["marchFast", 180, "室内有氧"],
+      ["shadowPunch", 120, "室内有氧"],
+      ["slowWalk", 90, "恢复"],
+      ["standingW", 60, "姿态"],
+      ["heelToeRock", 45, "循环"],
+      ["marchFast", 180, "室内有氧"],
+      ["shadowPunch", 120, "室内有氧"],
+      ["slowWalk", 90, "恢复"],
+      ["standingW", 60, "姿态"],
+      ["heelToeRock", 45, "循环"],
+      ["coolWalk", 180, "冷身"],
       ["calfStraight", 70, "拉伸"],
       ["calfBent", 70, "拉伸"],
-      ["hamstring", 60, "拉伸"]
+      ["hamstring", 70, "拉伸"],
+      ["doorway", 60, "拉伸"],
+      ["singleKneeHug", 90, "恢复"]
     ];
 
     const walkStretchQuick = [
@@ -1532,45 +1565,54 @@
       ["singleKneeHug", 90, "恢复"]
     ];
 
+    const strengthShortStretch = [
+      ["calfStraight", 60, "拉伸"],
+      ["hamstring", 60, "拉伸"],
+      ["doorway", 50, "拉伸"],
+      ["singleKneeHug", 70, "恢复"]
+    ];
+
     const roundStandard = [
-      ["chairSit", 85, "力量"],
-      ["hipHinge", 65, "力量"],
-      ["bridge", 90, "力量"],
-      ["coreSlide", 80, "力量"],
-      ["birdDog", 80, "力量"],
-      ["row", 85, "力量"],
-      ["forearmWallPush", 75, "力量"],
-      ["sideStep", 45, "力量"],
-      ["calfRaise", 55, "力量"]
+      ["chairSit", 100, "力量"],
+      ["hipHinge", 75, "力量"],
+      ["bridge", 105, "力量"],
+      ["coreSlide", 90, "力量"],
+      ["birdDog", 95, "力量"],
+      ["row", 100, "力量"],
+      ["forearmWallPush", 90, "力量"],
+      ["sideStep", 60, "力量"],
+      ["calfRaise", 60, "力量"]
     ];
 
     const roundCalfSafe = [
-      ["chairSit", 70, "力量"],
-      ["hipHinge", 55, "力量"],
-      ["bridge", 80, "力量"],
-      ["coreSlide", 75, "力量"],
-      ["birdDog", 80, "力量"],
-      ["row", 80, "力量"],
-      ["forearmWallPush", 70, "力量"],
-      ["pillow", 70, "力量"],
-      ["calfRaise", 45, "力量"]
+      ["chairSit", 85, "力量"],
+      ["hipHinge", 70, "力量"],
+      ["bridge", 100, "力量"],
+      ["coreSlide", 90, "力量"],
+      ["birdDog", 95, "力量"],
+      ["row", 100, "力量"],
+      ["forearmWallPush", 85, "力量"],
+      ["pillow", 80, "力量"]
     ];
 
     const roundLow = [
-      ["chairSit", 70, "力量"],
-      ["bridge", 80, "力量"],
-      ["coreSlide", 75, "力量"],
-      ["birdDog", 80, "力量"],
-      ["row", 80, "力量"],
-      ["forearmWallPush", 70, "力量"]
+      ["chairSit", 80, "力量"],
+      ["bridge", 95, "力量"],
+      ["row", 90, "力量"],
+      ["forearmWallPush", 80, "力量"],
+      ["coreSlide", 80, "力量"],
+      ["birdDog", 85, "力量"],
+      ["shadowPunch", 90, "密度"]
     ];
 
     const travelWarmup = [
-      ["slowWalk", 90, "热身"],
+      ["slowWalk", 120, "热身"],
       ["shoulderCircles", 45, "热身"],
+      ["scapula", 45, "热身"],
       ["chinTuck", 40, "热身"],
       ["deskCatCow", 60, "热身"],
-      ["ankle", 50, "热身"]
+      ["ankle", 50, "热身"],
+      ["hipHingeWarm", 60, "热身"]
     ];
 
     const roundTravelBand = [
@@ -1580,7 +1622,8 @@
       ["forearmWallPush", 65, "力量"],
       ["standingW", 60, "力量"],
       ["wallAngel", 60, "活动"],
-      ["sideStep", 35, "力量"]
+      ["sideStep", 35, "力量"],
+      ["calfRaise", 55, "力量"]
     ];
 
     const roundTravelNoBand = [
@@ -1589,7 +1632,8 @@
       ["forearmWallPush", 65, "力量"],
       ["standingW", 60, "力量"],
       ["wallAngel", 60, "活动"],
-      ["pillow", 70, "力量"]
+      ["pillow", 70, "力量"],
+      ["calfRaise", 55, "力量"]
     ];
 
     const travelStretch = [
@@ -1612,9 +1656,9 @@
 
     const planGroups = {
       home: [
-        { value: "strength", label: "力量标准版：2轮" },
-        { value: "strengthShort", label: "力量短版：忙/晚用" },
-        { value: "indoorCardio", label: "雨天室内有氧" }
+        { value: "strength", label: "力量标准版：约53分" },
+        { value: "strengthShort", label: "力量短版：密度约33分" },
+        { value: "indoorCardio", label: "雨天室内有氧：约50分" }
       ],
       walk: [
         { value: "walkWarmup", label: "健走前热身" },
@@ -1625,7 +1669,7 @@
         { value: "recoveryStretch", label: "状态差恢复拉伸" }
       ],
       travel: [
-        { value: "travel", label: "出差酒店训练" },
+        { value: "travel", label: "出差酒店训练：2轮" },
         { value: "seat", label: "车厢座位恢复" }
       ]
     };
@@ -1637,16 +1681,16 @@
 
     const presetNotes = {
       strength: {
-        title: "居家力量标准版 2.1",
-        text: "这是主要力量日：2 轮力量 + 完整拉伸。休息时会预习下一项要领，训练时会尽量保持屏幕常亮。"
+        title: "居家力量标准版 2.8",
+        text: "这是主要力量日：足量 2 轮 + 完整拉伸。每个动作按规定次数和节奏做，剩余时间用于恢复和预习下一项，不临时乱加次数。"
       },
       strengthShort: {
-        title: "居家力量短版",
-        text: "用于忙、晚、累但还想维持力量触感的日子。只做 1 轮，不补课，不追心率。"
+        title: "居家力量短版 2.8",
+        text: "这是密度短版：短热身、2 轮关键力量、15 秒短休、短拉伸。适合忙或晚，但不是恢复版；动作走形时直接停，不用硬撑。"
       },
       indoorCardio: {
-        title: "雨天室内有氧",
-        text: "用于连续下雨或不能出门走路的日子。它不是力量日，目标是低冲击补有氧：呼吸变深、能说短句，不跳、不跑、不跺脚。"
+        title: "雨天室内有氧 2.7",
+        text: "正常版给足约 50 分钟，包含热身、三段低冲击有氧循环、冷身和拉伸。目标是替代一次正式走路；小腿保护打开后会降到约 40 分钟并去掉横移。"
       },
       walkWarmup: {
         title: "公园健走前热身",
@@ -1665,8 +1709,8 @@
         text: "用于疲劳、晚睡、久站、加班后。它不是训练日，只是降低僵硬和恢复压力。"
       },
       travel: {
-        title: "出差酒店训练",
-        text: "用于酒店、办公室、探亲等没有瑜伽垫的场景。打开有弹力带时保留划船和侧步；没有弹力带时自动换成夹背和抱枕动作。"
+        title: "出差酒店训练 2.7",
+        text: "正常版改为 2 轮，约 32-35 分钟。打开有弹力带时保留划船和侧步；没有弹力带时自动换成夹背和抱枕动作。小腿保护打开后自动去掉侧步和提踵。"
       },
       seat: {
         title: "车厢座位恢复版",
@@ -1744,6 +1788,8 @@
     function makeSteps() {
       const restSeconds = Number(el.rest.value);
       const preset = el.preset.value;
+      const isShort = preset === "strengthShort";
+      const effectiveRestSeconds = isShort ? 15 : restSeconds;
       const steps = [];
       const simplePlans = {
         indoorCardio: el.calfCare.checked ? indoorCardioCare : indoorCardio,
@@ -1761,21 +1807,21 @@
       }
 
       const isTravel = preset === "travel";
-      const warmup = isTravel ? travelWarmup : baseWarmup;
-      const stretch = isTravel ? travelStretch : baseStretch;
+      const warmup = isTravel ? travelWarmup : isShort ? strengthShortWarmup : baseWarmup;
+      const stretch = isTravel ? travelStretch : isShort ? strengthShortStretch : baseStretch;
       let round = roundStandard;
       let rounds = 2;
 
       if (preset === "strengthShort") {
         round = roundLow;
-        rounds = 1;
+        rounds = 2;
       }
       if (preset === "strength" && el.calfCare.checked) {
         round = roundCalfSafe;
       }
       if (isTravel) {
         round = el.hasBand.checked ? roundTravelBand : roundTravelNoBand;
-        rounds = 1;
+        rounds = 2;
         if (el.calfCare.checked) {
           round = round.filter(item => !["sideStep", "calfRaise"].includes(item[0]));
         }
@@ -1788,18 +1834,18 @@
           step.round = r;
           steps.push(step);
           if (i < round.length - 1) {
-            const rest = toStep(["rest", restSeconds, "休息"]);
+            const rest = toStep(["rest", effectiveRestSeconds, "休息"]);
             rest.round = r;
             steps.push(rest);
           }
         });
         if (preset === "strength" && !el.calfCare.checked) {
-          const finisher = toStep(["marchFast", 60, "密度"]);
+          const finisher = toStep(["marchFast", 90, "密度"]);
           finisher.round = r;
           steps.push(finisher);
         }
         if (r < rounds) {
-          const rest = toStep(["rest", restSeconds, "轮间休息"]);
+          const rest = toStep(["rest", effectiveRestSeconds, "轮间休息"]);
           rest.round = r;
           steps.push(rest);
         }
