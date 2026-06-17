@@ -1124,7 +1124,8 @@
         <div class="setting">
           <label for="rest">动作间休息</label>
           <select id="rest">
-            <option value="30" selected>30 秒（默认）</option>
+            <option value="20" selected>20 秒（默认）</option>
+            <option value="30">30 秒（动作校正）</option>
             <option value="45">45 秒（动作走形时）</option>
             <option value="60">60 秒（恢复日）</option>
           </select>
@@ -1145,7 +1146,7 @@
 
       <section class="plan-note" id="planNote">
         <b>本版调整</b>
-        2.9 版重排室内有氧：4 轮主训练块，减少恢复插入，冷身缩短到 90 秒，提高替代健走的刺激。
+        3.0 版重排力量节奏：力量默认休息 20 秒，次数动作按实际节奏压缩，减少空等和冷掉。
       </section>
 
       <section class="queue">
@@ -1576,35 +1577,35 @@
     ];
 
     const roundStandard = [
-      ["chairSit", 100, "力量"],
-      ["hipHinge", 75, "力量"],
-      ["bridge", 105, "力量"],
-      ["coreSlide", 90, "力量"],
-      ["birdDog", 95, "力量"],
-      ["row", 100, "力量"],
-      ["forearmWallPush", 90, "力量"],
-      ["sideStep", 60, "力量"],
-      ["calfRaise", 60, "力量"]
+      ["chairSit", 85, "力量"],
+      ["hipHinge", 45, "力量"],
+      ["bridge", 90, "力量"],
+      ["coreSlide", 70, "力量"],
+      ["birdDog", 80, "力量"],
+      ["row", 85, "力量"],
+      ["forearmWallPush", 70, "力量"],
+      ["sideStep", 50, "力量"],
+      ["calfRaise", 45, "力量"]
     ];
 
     const roundCalfSafe = [
-      ["chairSit", 85, "力量"],
-      ["hipHinge", 70, "力量"],
-      ["bridge", 100, "力量"],
-      ["coreSlide", 90, "力量"],
-      ["birdDog", 95, "力量"],
-      ["row", 100, "力量"],
-      ["forearmWallPush", 85, "力量"],
-      ["pillow", 80, "力量"]
+      ["chairSit", 75, "力量"],
+      ["hipHinge", 45, "力量"],
+      ["bridge", 85, "力量"],
+      ["coreSlide", 70, "力量"],
+      ["birdDog", 80, "力量"],
+      ["row", 85, "力量"],
+      ["forearmWallPush", 70, "力量"],
+      ["pillow", 65, "力量"]
     ];
 
     const roundLow = [
-      ["chairSit", 80, "力量"],
-      ["bridge", 95, "力量"],
-      ["row", 90, "力量"],
-      ["forearmWallPush", 80, "力量"],
-      ["coreSlide", 80, "力量"],
-      ["birdDog", 85, "力量"],
+      ["chairSit", 70, "力量"],
+      ["bridge", 85, "力量"],
+      ["row", 80, "力量"],
+      ["forearmWallPush", 65, "力量"],
+      ["coreSlide", 65, "力量"],
+      ["birdDog", 75, "力量"],
       ["shadowPunch", 90, "密度"]
     ];
 
@@ -1659,8 +1660,8 @@
 
     const planGroups = {
       home: [
-        { value: "strength", label: "力量标准版：约53分" },
-        { value: "strengthShort", label: "力量短版：密度约33分" },
+        { value: "strength", label: "力量标准版：约45分" },
+        { value: "strengthShort", label: "力量短版：密度约30分" },
         { value: "indoorCardio", label: "雨天室内有氧：强化约50分" }
       ],
       walk: [
@@ -1684,11 +1685,11 @@
 
     const presetNotes = {
       strength: {
-        title: "居家力量标准版 2.8",
-        text: "这是主要力量日：足量 2 轮 + 完整拉伸。每个动作按规定次数和节奏做，剩余时间用于恢复和预习下一项，不临时乱加次数。"
+        title: "居家力量标准版 3.0",
+        text: "这是主要力量日：2 轮力量 + 完整拉伸。次数动作按实际节奏压缩计时，默认休息 20 秒；做完规定次数后只短暂调整，不再长时间空等。"
       },
       strengthShort: {
-        title: "居家力量短版 2.8",
+        title: "居家力量短版 3.0",
         text: "这是密度短版：短热身、2 轮关键力量、15 秒短休、短拉伸。适合忙或晚，但不是恢复版；动作走形时直接停，不用硬撑。"
       },
       indoorCardio: {
@@ -1860,17 +1861,25 @@
 
     function toStep(item) {
       const info = actionInfo[item[0]];
+      const actualDose = item[3] || `${formatDuration(item[1])} · ${info.dose}`;
       return {
         key: item[0],
         seconds: item[1],
         total: item[1],
         phase: item[2],
         name: info.name,
-        dose: info.dose,
+        dose: actualDose,
         cues: info.cues,
         warnings: info.warnings,
         breath: info.breath
       };
+    }
+
+    function formatDuration(seconds) {
+      if (seconds < 60) return `${seconds} 秒`;
+      const minutes = Math.floor(seconds / 60);
+      const rest = seconds % 60;
+      return rest ? `${minutes}分${rest}秒` : `${minutes} 分钟`;
     }
 
     function formatTime(seconds) {
