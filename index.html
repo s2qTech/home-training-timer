@@ -97,7 +97,7 @@
       mix-blend-mode: multiply;
     }
 
-    button, select {
+    button, select, input {
       font: inherit;
     }
 
@@ -458,6 +458,56 @@
     select option {
       background: #ffffff;
       color: var(--ink);
+    }
+
+    .cloud-db {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #ffffff;
+      padding: 10px;
+    }
+
+    .cloud-db summary {
+      cursor: pointer;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .cloud-db-fields {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .cloud-db-fields input[type="url"],
+    .cloud-db-fields input[type="password"] {
+      width: 100%;
+      min-width: 0;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      background: #ffffff;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .cloud-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .cloud-status {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .cloud-status.error {
+      color: #b2453d;
     }
 
     .scene-grid {
@@ -1137,6 +1187,24 @@
           <label class="toggle"><input id="calfCare" type="checkbox"> 小腿保护</label>
           <label class="toggle"><input id="hasBand" type="checkbox" checked> 有弹力带</label>
         </div>
+        <details class="cloud-db">
+          <summary>云数据库</summary>
+          <div class="cloud-db-fields">
+            <label>
+              API 地址
+              <input id="cloudApiBase" type="url" placeholder="https://your-worker.workers.dev/api">
+            </label>
+            <label>
+              Timer 访问密钥
+              <input id="cloudToken" type="password" autocomplete="off" placeholder="Worker TIMER_TOKEN">
+            </label>
+            <div class="cloud-actions">
+              <button class="btn" id="cloudSave" type="button">保存</button>
+              <button class="btn" id="cloudTest" type="button">测试</button>
+            </div>
+            <p class="cloud-status" id="cloudStatus">未配置时只保存在本机。</p>
+          </div>
+        </details>
       </section>
 
       <section class="summary">
@@ -1858,6 +1926,8 @@
     }, {});
 
     const TIMER_SESSION_STORAGE_KEY = "home-training-timer:sessions:v1";
+    const CLOUD_CONFIG_STORAGE_KEY = "home-training-timer:cloud-config:v1";
+    const TIMER_DEVICE_STORAGE_KEY = "home-training-timer:device-id:v1";
     window.HomeTrainingTimerCatalog = routineCatalog;
 
     const state = {
@@ -1871,7 +1941,8 @@
       lastTick: 0,
       wakeLock: null,
       launch: parseLaunchParams(),
-      session: null
+      session: null,
+      cloudConfig: loadCloudConfig()
     };
 
     const el = {
@@ -1904,8 +1975,162 @@
       resetBtn: document.getElementById("resetBtn"),
       totalTime: document.getElementById("totalTime"),
       workCount: document.getElementById("workCount"),
-      planNote: document.getElementById("planNote")
+      planNote: document.getElementById("planNote"),
+      cloudApiBase: document.getElementById("cloudApiBase"),
+      cloudToken: document.getElementById("cloudToken"),
+      cloudSave: document.getElementById("cloudSave"),
+      cloudTest: document.getElementById("cloudTest"),
+      cloudStatus: document.getElementById("cloudStatus")
     };
+
+    function normalizeCloudApiBase(value) {
+      const next = String(value || "").trim().replace(/\/+$/, "");
+      if (!next) return "";
+      return next.endsWith("/api") ? next : `${next}/api`;
+    }
+
+    function loadCloudConfig() {
+      try {
+        const raw = window.localStorage.getItem(CLOUD_CONFIG_STORAGE_KEY);
+        const config = raw ? JSON.parse(raw) : {};
+        return {
+          apiBase: normalizeCloudApiBase(config.apiBase || ""),
+          token: config.token || ""
+        };
+      } catch (e) {
+        return { apiBase: "", token: "" };
+      }
+    }
+
+    function saveCloudConfig(config) {
+      const next = {
+        apiBase: normalizeCloudApiBase(config.apiBase ?? state.cloudConfig.apiBase),
+        token: config.token ?? state.cloudConfig.token
+      };
+      state.cloudConfig = next;
+      window.localStorage.setItem(CLOUD_CONFIG_STORAGE_KEY, JSON.stringify(next));
+      renderCloudConfig();
+    }
+
+    function renderCloudConfig(message = "", isError = false) {
+      el.cloudApiBase.value = state.cloudConfig.apiBase || "";
+      el.cloudToken.value = state.cloudConfig.token || "";
+      el.cloudStatus.textContent = message || (state.cloudConfig.apiBase && state.cloudConfig.token ? "已配置，完成训练后会写入云数据库。" : "未配置时只保存在本机。");
+      el.cloudStatus.classList.toggle("error", Boolean(isError));
+    }
+
+    function getTimerDeviceId() {
+      try {
+        const existing = window.localStorage.getItem(TIMER_DEVICE_STORAGE_KEY);
+        if (existing) return existing;
+        const id = `timer_web_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        window.localStorage.setItem(TIMER_DEVICE_STORAGE_KEY, id);
+        return id;
+      } catch (e) {
+        return "timer_web";
+      }
+    }
+
+    async function cloudRequest(path, options = {}) {
+      const apiBase = normalizeCloudApiBase(state.cloudConfig.apiBase);
+      if (!apiBase) throw new Error("请先填写云数据库 API 地址");
+      if (!state.cloudConfig.token && options.auth !== false) throw new Error("请先填写 TIMER_TOKEN");
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Shenke-Device-Id": getTimerDeviceId()
+      };
+      if (options.auth !== false) headers.Authorization = `Bearer ${state.cloudConfig.token}`;
+      const response = await fetch(`${apiBase}${path}`, {
+        method: options.method || "POST",
+        headers,
+        body: options.body ? JSON.stringify(options.body) : undefined
+      });
+      const text = await response.text();
+      let payload = null;
+      try {
+        payload = text ? JSON.parse(text) : {};
+      } catch (e) {
+        throw new Error(`云端返回非 JSON：${response.status}`);
+      }
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error || `请求失败：${response.status}`);
+      }
+      return payload;
+    }
+
+    async function testCloudConnection() {
+      renderCloudConfig("正在测试云数据库...");
+      try {
+        const result = await cloudRequest("/health", { method: "GET", auth: false });
+        renderCloudConfig(result.ok ? `连接正常：${result.service || "shenke-cloud-db"}` : "连接返回异常");
+      } catch (error) {
+        renderCloudConfig(error.message || "连接失败", true);
+      }
+    }
+
+    function getStoredTimerSessions() {
+      try {
+        const sessions = JSON.parse(window.localStorage.getItem(TIMER_SESSION_STORAGE_KEY) || "[]");
+        return Array.isArray(sessions) ? sessions : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function sendTimerSessionToCloud(session) {
+      if (!session || session.completion === "in_progress") return;
+      if (!state.cloudConfig.apiBase || !state.cloudConfig.token) {
+        renderCloudConfig("云数据库未配置，本次训练已保存在本机。");
+        return;
+      }
+      const deviceId = session.deviceId || getTimerDeviceId();
+      const pendingSession = {
+        ...session,
+        deviceId,
+        cloudState: "pending",
+        cloudAttemptedAt: new Date().toISOString()
+      };
+      saveTimerSession(pendingSession);
+      try {
+        const result = await cloudRequest("/timer-sessions", {
+          body: {
+            deviceId,
+            timerSession: pendingSession,
+            baseRevision: session.cloudRevision || session.revision || 0
+          }
+        });
+        const accepted = Array.isArray(result.accepted) ? result.accepted[0] : null;
+        const syncedSession = {
+          ...pendingSession,
+          cloudState: "clean",
+          cloudRevision: accepted?.revision || pendingSession.cloudRevision || 1,
+          cloudSyncedAt: accepted?.updatedAt || result.serverTime || new Date().toISOString(),
+          cloudError: ""
+        };
+        saveTimerSession(syncedSession);
+        if (state.session && state.session.id === syncedSession.id) state.session = syncedSession;
+        renderCloudConfig("训练记录已写入云数据库。");
+      } catch (error) {
+        const failedSession = {
+          ...pendingSession,
+          cloudState: "error",
+          cloudError: error.message || "云端写入失败"
+        };
+        saveTimerSession(failedSession);
+        if (state.session && state.session.id === failedSession.id) state.session = failedSession;
+        renderCloudConfig(`云端写入失败：${failedSession.cloudError}`, true);
+      }
+    }
+
+    async function retryPendingCloudSessions() {
+      const pending = getStoredTimerSessions()
+        .filter(session => session && session.completion !== "in_progress" && session.cloudState !== "clean")
+        .slice(0, 10)
+        .reverse();
+      for (const session of pending) {
+        await sendTimerSessionToCloud(session);
+      }
+    }
 
     function updateSceneButtons() {
       el.sceneButtons.forEach(button => {
@@ -2304,9 +2529,11 @@
       if (state.session && state.session.completion === "in_progress") return state.session;
       const context = getRoutineContext();
       const plannedSeconds = state.steps.reduce((sum, step) => sum + step.seconds, 0);
+      const startedAt = new Date().toISOString();
       state.session = {
         id: makeTimerSessionId(),
         schemaVersion: "timer-session/v1",
+        deviceId: getTimerDeviceId(),
         source: state.launch.source || "standalone",
         date: state.launch.date || new Date().toISOString().slice(0, 10),
         dailyPlanItemId: state.launch.dailyPlanItemId,
@@ -2317,8 +2544,10 @@
         routineCatalogVersion: context.routineCatalogVersion,
         trainingType: context.trainingType,
         scene: context.scene,
-        startedAt: new Date().toISOString(),
+        startedAt,
         endedAt: null,
+        createdAt: startedAt,
+        updatedAt: startedAt,
         plannedSeconds,
         actualSeconds: 0,
         completion: "in_progress",
@@ -2332,7 +2561,8 @@
         },
         plannedSteps: buildPlannedStepSnapshot(),
         stepResults: [],
-        notes: ""
+        notes: "",
+        cloudState: "local"
       };
       return state.session;
     }
@@ -2386,12 +2616,15 @@
       state.session = {
         ...state.session,
         endedAt: endedAt.toISOString(),
+        updatedAt: endedAt.toISOString(),
         actualSeconds: Number.isFinite(startedAt) ? Math.max(0, Math.round((endedAt.getTime() - startedAt) / 1000)) : 0,
         completion,
-        stepResults: buildStepResults(completion === "completed")
+        stepResults: buildStepResults(completion === "completed"),
+        cloudState: "pending"
       };
       saveTimerSession(state.session);
       emitTimerSession(state.session);
+      sendTimerSessionToCloud(state.session);
     }
 
     function start() {
@@ -2539,6 +2772,15 @@
       if (state.running && el.wake.checked) requestWakeLock();
       if (!el.wake.checked) releaseWakeLock();
     });
+    el.cloudSave.addEventListener("click", () => {
+      saveCloudConfig({
+        apiBase: el.cloudApiBase.value,
+        token: el.cloudToken.value
+      });
+      renderCloudConfig("云数据库配置已保存。");
+      retryPendingCloudSessions();
+    });
+    el.cloudTest.addEventListener("click", testCloudConnection);
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && state.running && el.wake.checked) {
@@ -2584,7 +2826,8 @@
         hasBand: parseBoolParam(params.get("hasBand")),
         voice: parseBoolParam(params.get("voice")),
         beep: parseBoolParam(params.get("beep")),
-        wake: parseBoolParam(params.get("wake"))
+        wake: parseBoolParam(params.get("wake")),
+        cloudApiBase: params.get("cloudApiBase") || params.get("apiBase") || null
       };
     }
 
@@ -2602,6 +2845,11 @@
       if (launch.voice !== null) el.voice.checked = launch.voice;
       if (launch.beep !== null) el.beep.checked = launch.beep;
       if (launch.wake !== null) el.wake.checked = launch.wake;
+      if (launch.cloudApiBase) {
+        saveCloudConfig({ apiBase: launch.cloudApiBase, token: state.cloudConfig.token });
+      } else {
+        renderCloudConfig();
+      }
     }
 
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
