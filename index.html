@@ -1749,6 +1749,117 @@
       }
     };
 
+    const routineCatalog = {
+      schemaVersion: "timer-routine-catalog/v1",
+      catalogVersion: "2026-06-19.timer-v1",
+      updatedAt: "2026-06-19",
+      actions: actionInfo,
+      presets: {
+        strength: {
+          routineId: "routine_home_strength_standard_v3_1",
+          routineVersion: "3.1",
+          scene: "home",
+          trainingType: "strength",
+          mode: "rounds",
+          warmup: baseWarmup,
+          round: roundStandard,
+          calfCareRound: roundCalfSafe,
+          stretch: baseStretch,
+          rounds: 2,
+          defaultRestSeconds: 20,
+          finisher: {
+            when: "notCalfCare",
+            items: [["marchFast", 90, roundStandard[roundStandard.length - 1][2]]]
+          }
+        },
+        strengthShort: {
+          routineId: "routine_home_strength_short_v3_1",
+          routineVersion: "3.1",
+          scene: "home",
+          trainingType: "strength",
+          mode: "rounds",
+          warmup: strengthShortWarmup,
+          round: roundLow,
+          stretch: strengthShortStretch,
+          rounds: 2,
+          restOverrideSeconds: 15
+        },
+        indoorCardio: {
+          routineId: "routine_indoor_cardio_v2_9",
+          routineVersion: "2.9",
+          scene: "home",
+          trainingType: "indoor_cardio",
+          mode: "sequence",
+          steps: indoorCardio,
+          calfCareSteps: indoorCardioCare
+        },
+        walkWarmup: {
+          routineId: "routine_walk_warmup_v1",
+          routineVersion: "1.0",
+          scene: "walk",
+          trainingType: "warmup",
+          mode: "sequence",
+          steps: walkWarmup
+        },
+        walkStretchQuick: {
+          routineId: "routine_walk_stretch_quick_v1",
+          routineVersion: "1.0",
+          scene: "walk",
+          trainingType: "stretch",
+          mode: "sequence",
+          steps: walkStretchQuick
+        },
+        walkStretchFull: {
+          routineId: "routine_walk_stretch_full_v1",
+          routineVersion: "1.0",
+          scene: "walk",
+          trainingType: "stretch",
+          mode: "sequence",
+          steps: walkStretchFull
+        },
+        recoveryStretch: {
+          routineId: "routine_recovery_stretch_v1",
+          routineVersion: "1.0",
+          scene: "recovery",
+          trainingType: "recovery",
+          mode: "sequence",
+          steps: recoveryStretch
+        },
+        travel: {
+          routineId: "routine_travel_hotel_v2_7",
+          routineVersion: "2.7",
+          scene: "travel",
+          trainingType: "travel_strength",
+          mode: "rounds",
+          warmup: travelWarmup,
+          roundByBand: {
+            withBand: roundTravelBand,
+            noBand: roundTravelNoBand
+          },
+          stretch: travelStretch,
+          rounds: 2,
+          calfCareFilterKeys: ["sideStep", "calfRaise"]
+        },
+        seat: {
+          routineId: "routine_seat_recovery_v1",
+          routineVersion: "1.0",
+          scene: "travel",
+          trainingType: "seat_recovery",
+          mode: "sequence",
+          steps: seatRoutine
+        }
+      }
+    };
+
+    const externalRoutineMap = Object.entries(routineCatalog.presets).reduce((map, [preset, routine]) => {
+      map[preset] = preset;
+      map[routine.routineId] = preset;
+      return map;
+    }, {});
+
+    const TIMER_SESSION_STORAGE_KEY = "home-training-timer:sessions:v1";
+    window.HomeTrainingTimerCatalog = routineCatalog;
+
     const state = {
       steps: [],
       index: 0,
@@ -1758,7 +1869,9 @@
       started: false,
       scene: "home",
       lastTick: 0,
-      wakeLock: null
+      wakeLock: null,
+      launch: parseLaunchParams(),
+      session: null
     };
 
     const el = {
@@ -1816,7 +1929,105 @@
       updateSceneButtons();
     }
 
+    function getRoutineDefinition(preset = el.preset.value) {
+      return routineCatalog.presets[preset] || routineCatalog.presets.strength;
+    }
+
+    function getRestSeconds(definition, selectedRestSeconds) {
+      if (Number.isFinite(definition.restOverrideSeconds)) return definition.restOverrideSeconds;
+      return Number.isFinite(selectedRestSeconds)
+        ? selectedRestSeconds
+        : definition.defaultRestSeconds || 20;
+    }
+
+    function copyItems(items) {
+      return (items || []).map(item => item.slice());
+    }
+
+    function finishStep() {
+      return toStep(["finish", 1, actionInfo.finish.name]);
+    }
+
+    function restStep(seconds, round) {
+      const step = toStep(["rest", seconds, actionInfo.rest.name]);
+      if (round) step.round = round;
+      return step;
+    }
+
+    function pushItems(target, items, round) {
+      copyItems(items).forEach(item => {
+        const step = toStep(item);
+        if (round) step.round = round;
+        target.push(step);
+      });
+    }
+
+    function resolveRoutineRound(definition, options) {
+      if (definition.roundByBand) {
+        const source = options.hasBand ? definition.roundByBand.withBand : definition.roundByBand.noBand;
+        const round = copyItems(source);
+        return options.calfCare && definition.calfCareFilterKeys
+          ? round.filter(item => !definition.calfCareFilterKeys.includes(item[0]))
+          : round;
+      }
+      if (options.calfCare && definition.calfCareRound) return copyItems(definition.calfCareRound);
+      return copyItems(definition.round);
+    }
+
+    function resolveRoutineSequence(definition, options) {
+      if (options.calfCare && definition.calfCareSteps) return copyItems(definition.calfCareSteps);
+      return copyItems(definition.steps);
+    }
+
+    function shouldAddFinisher(definition, options) {
+      if (!definition.finisher) return false;
+      if (definition.finisher.when === "notCalfCare") return !options.calfCare;
+      return true;
+    }
+
+    function makeStepsFromRoutineCatalog() {
+      const preset = el.preset.value;
+      const definition = getRoutineDefinition(preset);
+      const selectedRestSeconds = Number(el.rest.value);
+      const options = {
+        preset,
+        calfCare: el.calfCare.checked,
+        hasBand: el.hasBand.checked,
+        restSeconds: selectedRestSeconds
+      };
+      const steps = [];
+
+      if (definition.mode === "sequence") {
+        pushItems(steps, resolveRoutineSequence(definition, options));
+        steps.push(finishStep());
+        return steps;
+      }
+
+      const restSeconds = getRestSeconds(definition, selectedRestSeconds);
+      const round = resolveRoutineRound(definition, options);
+      const rounds = definition.rounds || 1;
+      pushItems(steps, definition.warmup);
+
+      for (let r = 1; r <= rounds; r++) {
+        round.forEach((item, i) => {
+          pushItems(steps, [item], r);
+          if (i < round.length - 1) steps.push(restStep(restSeconds, r));
+        });
+
+        if (shouldAddFinisher(definition, options)) {
+          pushItems(steps, definition.finisher.items, r);
+        }
+
+        if (r < rounds) steps.push(restStep(restSeconds, r));
+      }
+
+      pushItems(steps, definition.stretch);
+      steps.push(finishStep());
+      return steps;
+    }
+
     function makeSteps() {
+      return makeStepsFromRoutineCatalog();
       const restSeconds = Number(el.rest.value);
       const preset = el.preset.value;
       const isShort = preset === "strengthShort";
@@ -1923,6 +2134,7 @@
         state.index = 0;
         state.remaining = state.steps[0].seconds;
         state.started = false;
+        state.session = null;
         pause();
       } else {
         state.index = Math.min(state.index, state.steps.length - 1);
@@ -2055,11 +2267,139 @@
       }
     }
 
+    function getRoutineContext() {
+      const definition = getRoutineDefinition();
+      return {
+        preset: el.preset.value,
+        routineId: definition.routineId,
+        routineVersion: definition.routineVersion,
+        routineCatalogVersion: routineCatalog.catalogVersion,
+        trainingType: definition.trainingType,
+        scene: definition.scene
+      };
+    }
+
+    function makeTimerSessionId() {
+      if (state.launch.sessionId) return state.launch.sessionId;
+      const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+      const random = Math.random().toString(36).slice(2, 8);
+      return `session_${stamp}_${random}`;
+    }
+
+    function buildPlannedStepSnapshot() {
+      return state.steps
+        .filter(step => step.key !== "finish")
+        .map((step, index) => ({
+          order: index + 1,
+          stepId: step.key,
+          name: step.name,
+          phase: step.phase,
+          round: step.round || null,
+          plannedSeconds: step.seconds,
+          dose: step.dose
+        }));
+    }
+
+    function startTimerSession() {
+      if (state.session && state.session.completion === "in_progress") return state.session;
+      const context = getRoutineContext();
+      const plannedSeconds = state.steps.reduce((sum, step) => sum + step.seconds, 0);
+      state.session = {
+        id: makeTimerSessionId(),
+        schemaVersion: "timer-session/v1",
+        source: state.launch.source || "standalone",
+        date: state.launch.date || new Date().toISOString().slice(0, 10),
+        dailyPlanItemId: state.launch.dailyPlanItemId,
+        planTemplateId: state.launch.planTemplateId,
+        preset: context.preset,
+        routineId: context.routineId,
+        routineVersion: context.routineVersion,
+        routineCatalogVersion: context.routineCatalogVersion,
+        trainingType: context.trainingType,
+        scene: context.scene,
+        startedAt: new Date().toISOString(),
+        endedAt: null,
+        plannedSeconds,
+        actualSeconds: 0,
+        completion: "in_progress",
+        options: {
+          restSeconds: Number(el.rest.value),
+          calfCare: el.calfCare.checked,
+          hasBand: el.hasBand.checked,
+          voice: el.voice.checked,
+          beep: el.beep.checked,
+          wakeLock: el.wake.checked
+        },
+        plannedSteps: buildPlannedStepSnapshot(),
+        stepResults: [],
+        notes: ""
+      };
+      return state.session;
+    }
+
+    function buildStepResults(finished) {
+      return state.steps
+        .filter(step => step.key !== "finish")
+        .map((step, index) => {
+          const completed = finished ? true : index < state.index;
+          return {
+            order: index + 1,
+            stepId: step.key,
+            name: step.name,
+            phase: step.phase,
+            round: step.round || null,
+            plannedSeconds: step.seconds,
+            status: completed ? "completed" : "pending"
+          };
+        });
+    }
+
+    function saveTimerSession(session) {
+      try {
+        const existing = JSON.parse(window.localStorage.getItem(TIMER_SESSION_STORAGE_KEY) || "[]");
+        const next = [session, ...existing.filter(item => item && item.id !== session.id)].slice(0, 100);
+        window.localStorage.setItem(TIMER_SESSION_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        // Local persistence is best-effort; the timer must keep working offline.
+      }
+    }
+
+    function emitTimerSession(session) {
+      const message = {
+        type: "shenke.timerSession.completed",
+        source: "home-training-timer",
+        payload: session
+      };
+      try {
+        window.dispatchEvent(new CustomEvent("shenke:timer-session-completed", { detail: message }));
+      } catch (e) {
+        // Custom events are optional for older embedded browsers.
+      }
+      if (window.parent && window.parent !== window) window.parent.postMessage(message, "*");
+      if (window.opener) window.opener.postMessage(message, "*");
+    }
+
+    function completeTimerSession(completion = "completed") {
+      if (!state.session || state.session.completion !== "in_progress") return;
+      const endedAt = new Date();
+      const startedAt = Date.parse(state.session.startedAt);
+      state.session = {
+        ...state.session,
+        endedAt: endedAt.toISOString(),
+        actualSeconds: Number.isFinite(startedAt) ? Math.max(0, Math.round((endedAt.getTime() - startedAt) / 1000)) : 0,
+        completion,
+        stepResults: buildStepResults(completion === "completed")
+      };
+      saveTimerSession(state.session);
+      emitTimerSession(state.session);
+    }
+
     function start() {
       if (state.running) return;
       state.running = true;
       state.started = true;
       state.lastTick = Date.now();
+      startTimerSession();
       requestWakeLock();
       speakCurrent();
       state.timer = window.setInterval(tick, 250);
@@ -2101,7 +2441,13 @@
         return;
       }
       state.index += 1;
-      state.remaining = state.steps[state.index].seconds;
+      const current = state.steps[state.index];
+      state.remaining = current.key === "finish" ? 0 : current.seconds;
+      if (current.key === "finish") {
+        completeTimerSession("completed");
+        pause();
+        return;
+      }
       if (auto) {
         beep(860, 0.12);
         speakCurrent();
@@ -2210,9 +2556,57 @@
       if (event.key.toLowerCase() === "r") resetAll();
     });
 
+    function parseBoolParam(value) {
+      if (value === null || value === undefined || value === "") return null;
+      return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+    }
+
+    function parseNumberParam(value) {
+      if (value === null || value === undefined || value === "") return null;
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    }
+
+    function parseLaunchParams() {
+      const params = new URLSearchParams(window.location.search);
+      const routineParam = params.get("routineId") || params.get("routine") || params.get("preset");
+      const preset = externalRoutineMap[routineParam] || "";
+      return {
+        routineId: routineParam || null,
+        preset,
+        date: params.get("date") || params.get("plannedDate") || null,
+        dailyPlanItemId: params.get("dailyPlanItemId") || params.get("planItemId") || null,
+        planTemplateId: params.get("planTemplateId") || null,
+        source: params.get("source") || "standalone",
+        sessionId: params.get("sessionId") || null,
+        restSeconds: parseNumberParam(params.get("restSeconds")),
+        calfCare: parseBoolParam(params.get("calfCare")),
+        hasBand: parseBoolParam(params.get("hasBand")),
+        voice: parseBoolParam(params.get("voice")),
+        beep: parseBoolParam(params.get("beep")),
+        wake: parseBoolParam(params.get("wake"))
+      };
+    }
+
+    function applyLaunchParams() {
+      const launch = state.launch;
+      const preset = launch.preset || "strength";
+      const scene = planSceneByPreset[preset] || "home";
+      populatePreset(scene, preset);
+
+      if (launch.restSeconds !== null && Array.from(el.rest.options).some(option => Number(option.value) === launch.restSeconds)) {
+        el.rest.value = String(launch.restSeconds);
+      }
+      if (launch.calfCare !== null) el.calfCare.checked = launch.calfCare;
+      if (launch.hasBand !== null) el.hasBand.checked = launch.hasBand;
+      if (launch.voice !== null) el.voice.checked = launch.voice;
+      if (launch.beep !== null) el.beep.checked = launch.beep;
+      if (launch.wake !== null) el.wake.checked = launch.wake;
+    }
+
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-    populatePreset("home", "strength");
+    applyLaunchParams();
     updateWakeLabel();
     rebuild(true);
 
