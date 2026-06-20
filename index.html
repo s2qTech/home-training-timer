@@ -2077,6 +2077,18 @@
       }
     }
 
+    function toCloudTimerSessionPayload(session) {
+      const {
+        cloudState,
+        cloudRevision,
+        cloudAttemptedAt,
+        cloudSyncedAt,
+        cloudError,
+        ...payload
+      } = session || {};
+      return payload;
+    }
+
     async function sendTimerSessionToCloud(session) {
       if (!session || session.completion === "in_progress") return;
       if (!state.cloudConfig.apiBase || !state.cloudConfig.token) {
@@ -2092,10 +2104,11 @@
       };
       saveTimerSession(pendingSession);
       try {
+        const cloudSession = toCloudTimerSessionPayload(pendingSession);
         const result = await cloudRequest("/timer-sessions", {
           body: {
             deviceId,
-            timerSession: pendingSession,
+            timerSession: cloudSession,
             baseRevision: session.cloudRevision || session.revision || 0
           }
         });
