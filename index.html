@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>居家力量训练计时器</title>
+  <title>训练与拉伸计时器</title>
   <meta name="theme-color" content="#f6f8f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="训练计时器">
@@ -1089,7 +1089,7 @@
     <header class="hero">
       <div>
         <h1>训练与拉伸计时器</h1>
-        <p>按场景选择，自动切换动作。走前、走后、居家、出差和恢复都在这里处理。</p>
+        <p>按场景选择，自动切换动作。走前、走后、居家、外出和恢复都在这里处理。</p>
       </div>
       <div class="status-pill" id="status">未开始</div>
     </header>
@@ -1108,7 +1108,7 @@
             </div>
           </div>
           <div>
-            <h2 class="step-name" id="stepName">选择版本后点开始</h2>
+            <h2 class="step-name" id="stepName">选择流程后点开始</h2>
             <p class="step-dose" id="stepDose">今天以动作质量为准，不追心率。</p>
           </div>
         </div>
@@ -1118,7 +1118,7 @@
             <h3>动作要领</h3>
             <ul id="cues">
               <li>先选当前场景，再按身体状态打开小腿保护。</li>
-              <li>出差时有弹力带就勾选，没有就自动换动作。</li>
+              <li>外出时有弹力带就勾选，没有就自动换动作。</li>
             </ul>
           </div>
           <div class="detail-box">
@@ -1164,7 +1164,7 @@
             <button class="scene-btn active" type="button" data-scene="home">居家</button>
             <button class="scene-btn" type="button" data-scene="walk">健走</button>
             <button class="scene-btn" type="button" data-scene="recovery">恢复</button>
-            <button class="scene-btn" type="button" data-scene="travel">出行</button>
+            <button class="scene-btn" type="button" data-scene="travel">外出</button>
           </div>
         </div>
         <div class="setting">
@@ -1214,7 +1214,7 @@
 
       <section class="plan-note" id="planNote">
         <b>本版调整</b>
-        3.1 版升级力量主动作：髋部折叠退回热身技术，主训练改为臀桥、划船、斜板俯卧撑、死虫、鸟狗和蚌式组合。
+        力量训练以稳定、可持续为主：髋部折叠放在热身技术里，主训练用臀桥、划船、斜板俯卧撑、死虫、鸟狗和蚌式组合。
       </section>
 
       <section class="queue">
@@ -1386,7 +1386,7 @@
         name: "长弹力带坐姿划船",
         dose: "12 次",
         cues: ["坐椅子前半段或床边，长弹力带绕前脚掌中部，膝盖微弯。", "双手各握一端，手腕保持直；开始前先把带子拉到有轻微张力。", "坐高，胸口自然打开，肩膀向下放松。", "肘贴近身体往后拉到肋骨两侧，肩胛骨向后下夹，停 1 秒。", "再用 2 秒把手慢慢送回，肩胛也放回去。"],
-        warnings: ["不要身体后仰借力，不要耸肩。", "不要用手腕卷带子硬拽。", "先小力试拉，防止带子从脚上滑脱；出差不要随便挂门把手。"],
+        warnings: ["不要身体后仰借力，不要耸肩。", "不要用手腕卷带子硬拽。", "先小力试拉，防止带子从脚上滑脱；外出不要随便挂门把手。"],
         breath: "呼吸：拉回时呼气，放回时吸气。"
       },
       forearmWallPush: {
@@ -1755,21 +1755,21 @@
 
     const planGroups = {
       home: [
-        { value: "strength", label: "力量标准版：约47分" },
-        { value: "strengthShort", label: "力量短版：密度约30分" },
-        { value: "indoorCardio", label: "雨天室内有氧：强化约50分" }
+        { value: "strength", label: "力量训练：约47分" },
+        { value: "strengthShort", label: "力量短版：约30分" },
+        { value: "indoorCardio", label: "室内有氧：约50分" }
       ],
       walk: [
-        { value: "walkWarmup", label: "健走前热身" },
-        { value: "walkStretchQuick", label: "走后最低拉伸" },
-        { value: "walkStretchFull", label: "走后完整拉伸" }
+        { value: "walkWarmup", label: "走前热身" },
+        { value: "walkStretchQuick", label: "走后拉伸：简版" },
+        { value: "walkStretchFull", label: "走后拉伸：完整版" }
       ],
       recovery: [
-        { value: "recoveryStretch", label: "状态差恢复拉伸" }
+        { value: "recoveryStretch", label: "恢复拉伸" }
       ],
       travel: [
-        { value: "travel", label: "出差酒店训练：2轮" },
-        { value: "seat", label: "车厢座位恢复" }
+        { value: "travel", label: "外出训练：2轮" },
+        { value: "seat", label: "座位活动" }
       ]
     };
 
@@ -1780,52 +1780,53 @@
 
     const presetNotes = {
       strength: {
-        title: "居家力量标准版 3.1",
+        title: "力量训练",
         text: "这是主要力量日：2 轮力量 + 完整拉伸。主动作升级为弹力带臀桥、划船、斜板俯卧撑、死虫、鸟狗和蚌式；髋部折叠只做热身技术。默认休息 20 秒，动作质量差再手动加长。"
       },
       strengthShort: {
-        title: "居家力量短版 3.1",
-        text: "这是密度短版：短热身、2 轮核心力量、15 秒短休、短拉伸。动作和标准版一致但删减容量；适合忙或晚，不是恢复版。"
+        title: "力量短版",
+        text: "这是密度短版：短热身、2 轮核心力量、15 秒短休、短拉伸。动作和力量训练一致但删减容量；适合忙或晚，不是恢复拉伸。"
       },
       indoorCardio: {
-        title: "雨天室内有氧 2.9",
+        title: "室内有氧",
         text: "强化为 4 轮主训练块：快走、轻移步、冲拳、提速快走。恢复插入减少，冷身缩短到 90 秒。目标均心 105-115，仍然不跳、不跑、不高抬腿。"
       },
       walkWarmup: {
-        title: "公园健走前热身",
+        title: "走前热身",
         text: "用于到公园后、正式开始记录前。目标是让踝、小腿、髋和上背慢慢进入状态，不追出汗。"
       },
       walkStretchQuick: {
-        title: "健走后最低拉伸",
+        title: "走后拉伸",
         text: "用于走完后马上有家务、孩子、回家路程时。优先冷身和小腿处理，做完这套就算保底完成。"
       },
       walkStretchFull: {
-        title: "健走后完整拉伸",
-        text: "用于走完后时间允许。比最低版多臀部、胸肩和腰背放松，适合提高走或小腿发紧的日子。"
+        title: "走后拉伸",
+        text: "用于走完后时间允许。比简版多臀部、胸肩和腰背放松，适合提高走或小腿发紧的日子。"
       },
       recoveryStretch: {
-        title: "状态差恢复拉伸",
+        title: "恢复拉伸",
         text: "用于疲劳、晚睡、久站、加班后。它不是训练日，只是降低僵硬和恢复压力。"
       },
       travel: {
-        title: "出差酒店训练 2.7",
-        text: "正常版改为 2 轮，约 32-35 分钟。打开有弹力带时保留划船和侧步；没有弹力带时自动换成夹背和抱枕动作。小腿保护打开后自动去掉侧步和提踵。"
+        title: "外出训练",
+        text: "外出训练为 2 轮，约 32-35 分钟。打开有弹力带时保留划船和侧步；没有弹力带时自动换成夹背和抱枕动作。小腿保护打开后自动去掉侧步和提踵。"
       },
       seat: {
-        title: "车厢座位恢复版",
+        title: "座位活动",
         text: "用于火车、飞机、长途久坐。它不是力量日，只是活动踝、髋、腰背和肩颈，降低久坐僵硬。空间不足时只做脚踝泵和呼吸。"
       }
     };
 
     const routineCatalog = {
       schemaVersion: "timer-routine-catalog/v1",
-      catalogVersion: "2026-06-19.timer-v1",
-      updatedAt: "2026-06-19",
+      catalogVersion: "2026-06-21.timer-v2",
+      updatedAt: "2026-06-21",
       actions: actionInfo,
       presets: {
         strength: {
           routineId: "routine_home_strength_standard_v3_1",
           routineVersion: "3.1",
+          displayName: "力量训练",
           scene: "home",
           trainingType: "strength",
           mode: "rounds",
@@ -1843,6 +1844,7 @@
         strengthShort: {
           routineId: "routine_home_strength_short_v3_1",
           routineVersion: "3.1",
+          displayName: "力量短版",
           scene: "home",
           trainingType: "strength",
           mode: "rounds",
@@ -1855,6 +1857,7 @@
         indoorCardio: {
           routineId: "routine_indoor_cardio_v2_9",
           routineVersion: "2.9",
+          displayName: "室内有氧",
           scene: "home",
           trainingType: "indoor_cardio",
           mode: "sequence",
@@ -1864,6 +1867,7 @@
         walkWarmup: {
           routineId: "routine_walk_warmup_v1",
           routineVersion: "1.0",
+          displayName: "走前热身",
           scene: "walk",
           trainingType: "warmup",
           mode: "sequence",
@@ -1872,6 +1876,8 @@
         walkStretchQuick: {
           routineId: "routine_walk_stretch_quick_v1",
           routineVersion: "1.0",
+          displayName: "走后拉伸",
+          displayVariant: "简版",
           scene: "walk",
           trainingType: "stretch",
           mode: "sequence",
@@ -1880,6 +1886,8 @@
         walkStretchFull: {
           routineId: "routine_walk_stretch_full_v1",
           routineVersion: "1.0",
+          displayName: "走后拉伸",
+          displayVariant: "完整版",
           scene: "walk",
           trainingType: "stretch",
           mode: "sequence",
@@ -1888,6 +1896,7 @@
         recoveryStretch: {
           routineId: "routine_recovery_stretch_v1",
           routineVersion: "1.0",
+          displayName: "恢复拉伸",
           scene: "recovery",
           trainingType: "recovery",
           mode: "sequence",
@@ -1896,6 +1905,7 @@
         travel: {
           routineId: "routine_travel_hotel_v2_7",
           routineVersion: "2.7",
+          displayName: "外出训练",
           scene: "travel",
           trainingType: "travel_strength",
           mode: "rounds",
@@ -1911,6 +1921,7 @@
         seat: {
           routineId: "routine_seat_recovery_v1",
           routineVersion: "1.0",
+          displayName: "座位活动",
           scene: "travel",
           trainingType: "seat_recovery",
           mode: "sequence",
@@ -2438,7 +2449,7 @@
         extras.push("已开启小腿保护：减少侧向刺激和小腿密度，疼痛时仍应直接跳过相关动作。");
       }
       if (el.preset.value === "travel") {
-        extras.push(el.hasBand.checked ? "出差训练将使用弹力带划船；短带侧步小腿紧时可跳过。" : "未带弹力带：已替换为不依赖器具的胸背动作。");
+        extras.push(el.hasBand.checked ? "外出训练将使用弹力带划船；短带侧步小腿紧时可跳过。" : "未带弹力带：已替换为不依赖器具的胸背动作。");
       }
       el.planNote.innerHTML = `<b>${note.title}</b>${note.text}${extras.length ? `<br><br>${extras.join(" ")}` : ""}`;
     }
@@ -2511,6 +2522,8 @@
         preset: el.preset.value,
         routineId: definition.routineId,
         routineVersion: definition.routineVersion,
+        routineTitle: definition.displayName || (presetNotes[el.preset.value] || {}).title || definition.routineId,
+        routineVariant: definition.displayVariant || "",
         routineCatalogVersion: routineCatalog.catalogVersion,
         trainingType: definition.trainingType,
         scene: definition.scene
@@ -2554,6 +2567,8 @@
         preset: context.preset,
         routineId: context.routineId,
         routineVersion: context.routineVersion,
+        routineTitle: context.routineTitle,
+        routineVariant: context.routineVariant,
         routineCatalogVersion: context.routineCatalogVersion,
         trainingType: context.trainingType,
         scene: context.scene,

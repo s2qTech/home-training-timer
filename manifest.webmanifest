@@ -1,7 +1,7 @@
 {
   "name": "训练与拉伸计时器",
   "short_name": "训练计时器",
-  "description": "按场景选择训练，记录最近 7 天运动，并根据实际完成情况给出今日建议。",
+  "description": "按场景选择训练流程，自动计时、提示动作，并把完成记录写入身刻云数据库。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
