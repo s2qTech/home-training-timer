@@ -1,4 +1,4 @@
-const CACHE_NAME = "home-strength-timer-v24-display-names";
+const CACHE_NAME = "home-strength-timer-v25-shenk-layout";
 const ASSETS = [
   "./",
   "./index.html",

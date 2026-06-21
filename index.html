@@ -4,30 +4,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>训练与拉伸计时器</title>
-  <meta name="theme-color" content="#f6f8f6">
+  <meta name="theme-color" content="#f6f7f4">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="训练计时器">
   <link rel="manifest" href="./manifest.webmanifest">
+  <script>
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (window.self !== window.top || params.get("source") === "shenk") {
+        document.documentElement.classList.add("is-embedded");
+      }
+    } catch (error) {
+      // Embedded mode is visual only.
+    }
+  </script>
   <style>
     :root {
-      --bg: #f6f8f6;
+      --bg: #f6f7f4;
       --panel: #ffffff;
-      --panel-strong: #fbfcfb;
-      --card: #ffffff;
-      --ink: #26302f;
-      --muted: #6c7774;
-      --line: #e1e7e2;
-      --green: #5f8f78;
-      --green-2: #7aa890;
-      --green-soft: #edf5ef;
-      --blue: #5f8fa8;
-      --blue-soft: #eef6fa;
-      --orange: #c79843;
-      --orange-soft: #fff7e8;
-      --red: #b86a63;
-      --red-soft: #faeeee;
-      --shadow: 0 1px 2px rgba(38, 48, 47, .06), 0 10px 26px rgba(38, 48, 47, .08);
+      --panel-strong: #eef2ee;
+      --surface: #ffffff;
+      --surface-2: #eef2ee;
+      --ink: #1f2924;
+      --muted: #66736b;
+      --soft: #8a958e;
+      --line: #dfe5df;
+      --line-strong: #cbd6cd;
+      --green: #6f9178;
+      --green-dark: #4f7058;
+      --green-soft: #edf3ee;
+      --blue: #7896aa;
+      --blue-soft: #edf4f7;
+      --yellow: #d7b45a;
+      --orange: #d7b45a;
+      --orange-soft: #fbf5e3;
+      --red: #ba6b5d;
+      --red-soft: #f8eeee;
+      --shadow: 0 10px 28px rgba(42, 54, 48, .08);
       --radius: 8px;
+      --radius-sm: 6px;
     }
 
     * { box-sizing: border-box; }
@@ -58,13 +73,10 @@
     body {
       margin: 0;
       min-height: 100vh;
-      background:
-        radial-gradient(circle at 14% 8%, rgba(143, 181, 160, .16), transparent 28%),
-        radial-gradient(circle at 86% 14%, rgba(148, 184, 205, .14), transparent 30%),
-        linear-gradient(180deg, #fbfcfb 0%, var(--bg) 100%);
+      background: var(--bg);
       color: var(--ink);
       color-scheme: light;
-      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+      font-family: Inter, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
       line-height: 1.5;
       position: relative;
       isolation: isolate;
@@ -76,6 +88,7 @@
       position: fixed;
       pointer-events: none;
       z-index: 0;
+      display: none;
     }
 
     body::before {
@@ -102,7 +115,7 @@
     }
 
     .app {
-      width: min(1160px, calc(100% - 24px));
+      width: min(1280px, calc(100% - 24px));
       margin: 16px auto 28px;
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(300px, 352px);
@@ -129,7 +142,7 @@
       border-radius: var(--radius);
       background: var(--panel);
       box-shadow: var(--shadow);
-      transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+      transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
       position: relative;
       overflow: hidden;
     }
@@ -158,8 +171,8 @@
     .controls:hover,
     .queue:hover {
       background: #ffffff;
-      border-color: #d4ded7;
-      box-shadow: 0 1px 2px rgba(38, 48, 47, .07), 0 14px 30px rgba(38, 48, 47, .10);
+      border-color: var(--line-strong);
+      box-shadow: 0 12px 30px rgba(42, 54, 48, .1);
     }
 
     .hero {
@@ -194,7 +207,7 @@
       padding: 8px 14px;
       border-radius: 999px;
       background: var(--green-soft);
-      color: var(--blue);
+      color: var(--green-dark);
       font-weight: 800;
       text-align: center;
       border: 1px solid #d8e6dc;
@@ -264,7 +277,7 @@
       aspect-ratio: 1;
       border-radius: 50%;
       background:
-        conic-gradient(var(--green) var(--p), #e5ebe7 0deg),
+        conic-gradient(var(--green-dark) var(--p), #e5ebe7 0deg),
         #f8faf8;
       display: grid;
       place-items: center;
@@ -338,7 +351,7 @@
       padding: 12px 14px;
       border-radius: var(--radius);
       background: var(--blue-soft);
-      color: #3f6678;
+      color: #4f6f82;
       font-weight: 800;
       border: 1px solid #d8eaf2;
       box-shadow: none;
@@ -393,8 +406,8 @@
     .btn.primary {
       background: var(--green);
       color: #fff;
-      border-color: var(--green);
-      box-shadow: 0 8px 16px rgba(95, 143, 120, .18);
+      border-color: var(--green-dark);
+      box-shadow: none;
     }
 
     .btn.warn {
@@ -537,7 +550,7 @@
 
     .scene-btn.active {
       background: var(--green-soft);
-      border-color: #bdd6c8;
+      border-color: #cbdccd;
       color: var(--green-dark);
     }
 
@@ -849,9 +862,122 @@
       }
     }
 
+    .is-embedded body {
+      min-height: 100vh;
+      background: var(--bg);
+    }
+
+    .is-embedded .app {
+      width: 100%;
+      height: 100vh;
+      margin: 0;
+      padding: 10px;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 368px);
+      grid-template-rows: minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .is-embedded .hero,
+    .is-embedded .footer-note {
+      display: none;
+    }
+
+    .is-embedded .main {
+      grid-template-rows: minmax(0, 1fr) auto;
+      min-height: 0;
+    }
+
+    .is-embedded .main-card,
+    .is-embedded .side {
+      height: 100%;
+      min-height: 0;
+    }
+
+    .is-embedded .main-card {
+      padding: 14px;
+      gap: 10px;
+      box-shadow: none;
+    }
+
+    .is-embedded .ring {
+      --ring-size: 138px;
+      --inner-size: 102px;
+      width: var(--ring-size);
+    }
+
+    .is-embedded .step-name {
+      font-size: clamp(28px, 3vw, 40px);
+    }
+
+    .is-embedded .step-dose {
+      font-size: 16px;
+    }
+
+    .is-embedded .detail-box {
+      padding: 12px;
+    }
+
+    .is-embedded .controls {
+      padding: 8px;
+      gap: 8px;
+      box-shadow: none;
+    }
+
+    .is-embedded .btn {
+      min-height: 46px;
+      border-radius: var(--radius-sm);
+    }
+
+    .is-embedded .side {
+      overflow: hidden;
+      box-shadow: none;
+    }
+
+    .is-embedded .queue {
+      max-height: none;
+    }
+
+    .is-embedded .cloud-db,
+    .is-embedded .plan-note {
+      display: none;
+    }
+
     @media (max-width: 920px) {
       .app {
         grid-template-columns: 1fr;
+      }
+      .is-embedded body {
+        overflow: auto;
+      }
+      .is-embedded .app {
+        height: auto;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        padding: 8px;
+      }
+      .is-embedded .main,
+      .is-embedded .main-card,
+      .is-embedded .side {
+        height: auto;
+      }
+      .is-embedded .side {
+        overflow: visible;
+      }
+      .is-embedded .timer {
+        grid-template-columns: 112px minmax(0, 1fr);
+        gap: 12px;
+      }
+      .is-embedded .ring {
+        --ring-size: 112px;
+        --inner-size: 84px;
+        width: var(--ring-size);
+      }
+      .is-embedded .time {
+        font-size: 27px;
+      }
+      .is-embedded .step-name {
+        font-size: 28px;
       }
       .side {
         order: 3;
@@ -863,10 +989,7 @@
 
     @media (max-width: 640px) {
       body {
-        background:
-          radial-gradient(circle at 14% 8%, rgba(143, 181, 160, .16), transparent 30%),
-          radial-gradient(circle at 86% 10%, rgba(148, 184, 205, .12), transparent 30%),
-          linear-gradient(180deg, #fbfcfb 0%, var(--bg) 100%);
+        background: var(--bg);
       }
 
       body::before {
@@ -1230,35 +1353,35 @@
     const actionInfo = {
       slowWalk: {
         name: "原地慢走",
-        dose: "2 分钟",
+        dose: "按计时持续",
         cues: ["小步、轻落地，手臂自然摆。", "身体慢慢热起来，不追出汗。"],
         warnings: ["不要高抬腿。", "左小腿不适时更要轻。"],
         breath: "呼吸：自然呼吸，能轻松说话。"
       },
       coolWalk: {
         name: "慢走冷身",
-        dose: "3 分钟",
+        dose: "按计时持续",
         cues: ["从快走降到散步速度。", "步子变小，脚步变轻。", "让心率和呼吸慢慢下来。"],
         warnings: ["不要刚冲完就立刻停住猛拉。", "腿发紧时更要慢慢降速。"],
         breath: "呼吸：逐渐变慢，能完整说话。"
       },
       marchFast: {
         name: "原地小步快走",
-        dose: "2-4 分钟",
+        dose: "按计时持续",
         cues: ["小步、轻落地，脚步比热身稍快。", "手臂自然前后摆，不跑不跳。", "让心率稍微上来即可。"],
         warnings: ["左小腿不适时跳过。", "不要高抬腿，不要跺脚。"],
         breath: "呼吸：变深可以，不能喘乱。"
       },
       sideShift: {
         name: "左右轻移步",
-        dose: "1-2 分钟",
+        dose: "按计时持续",
         cues: ["双脚小幅左右移动，像在窄走廊里轻轻横移。", "脚尖朝前，膝盖跟脚尖同方向。", "身体保持直，不左右甩腰。"],
         warnings: ["不是跳步，不要弹跳。", "小腿、大腿外侧或膝盖不适就跳过。"],
         breath: "呼吸：能说短句，不能乱喘。"
       },
       shadowPunch: {
         name: "站姿连续冲拳",
-        dose: "90-120 秒",
+        dose: "按计时持续",
         cues: ["双脚站稳，膝盖微松。", "左右手交替向前轻快出拳，拳头到胸口高度即可。", "核心轻收，身体不左右乱扭。"],
         warnings: ["不要锁死膝盖。", "肩颈不要耸。", "手腕保持直，肩痛或手腕痛就改成小幅摆臂。"],
         breath: "呼吸：节奏稳定，能说短句。"
@@ -1300,7 +1423,7 @@
       },
       heelToeRock: {
         name: "脚跟脚尖滚动",
-        dose: "30-40 秒",
+        dose: "按计时持续",
         cues: ["扶墙或扶栏杆站稳。", "脚跟轻抬、放下，再脚尖轻轻翘起。", "动作小而慢，像给小腿和脚踝通电。"],
         warnings: ["不要跺脚。", "小腿旧伤侧不舒服就减小幅度。"],
         breath: "呼吸：自然呼吸。"
@@ -1314,7 +1437,7 @@
       },
       deskCatCow: {
         name: "猫牛式",
-        dose: "6-8 次",
+        dose: "6 次",
         cues: ["四点支撑，双手在肩下，膝盖在髋下。", "吸气时胸口轻轻向前，尾骨微微上翘。", "呼气时尾骨内收，背慢慢拱起。"],
         warnings: ["动作慢，不追大幅度。", "不要猛塌腰、猛仰头。", "手腕疼可用拳头、前臂或扶桌替代；出现腿麻、放射痛就停止。"],
         breath: "呼吸：吸气展开，呼气拱背，慢慢做。"
@@ -1335,7 +1458,7 @@
       },
       chairSit: {
         name: "椅子坐站",
-        dose: "10-12 次",
+        dose: "10 次",
         cues: ["坐椅子前半段，双脚与髋同宽，脚掌踩实，脚可略在膝盖后方。", "双手可前平举、抱胸，或轻扶桌边；不要撑膝盖。", "上身从髋部前倾，背保持直，鼻子大致越过脚尖后站起。", "屁股轻轻坐实 0.5 秒再站起，站到髋和膝伸直但不锁死。"],
         warnings: ["不是上身竖直硬蹲；允许前倾，但背不能塌。", "不要砸到椅子上，不要靠椅背休息。", "膝盖对准第二、第三脚趾，不能内扣。", "膝盖压力大时把椅子垫高或双手轻扶桌边。"],
         breath: "呼吸：下坐时吸气，脚跟和脚掌一起发力站起时呼气。"
@@ -1356,8 +1479,8 @@
       },
       bandBridge: {
         name: "弹力带臀桥",
-        dose: "12-15 次",
-        cues: ["短弹力带套在膝盖上方；不舒服时不套带也可以。", "仰卧屈膝，双脚与髋同宽踩地，脚跟离屁股约一脚掌到一脚半。", "双手放身体两侧，手掌向下轻贴地；先轻收腹，让肋骨别往上翻。", "夹臀把髋抬起，膝盖轻轻向外顶住弹力带，顶端停 2 秒。", "肩、髋、膝接近一条斜线即可，再用 2-3 秒慢慢放下。"],
+        dose: "12 次",
+        cues: ["短弹力带套在膝盖上方；不舒服时不套带也可以。", "仰卧屈膝，双脚与髋同宽踩地，脚跟离屁股约一脚掌到一脚半。", "双手放身体两侧，手掌向下轻贴地；先轻收腹，让肋骨别往上翻。", "夹臀把髋抬起，膝盖轻轻向外顶住弹力带，顶端停 2 秒。", "肩、髋、膝接近一条斜线即可，再用 3 秒慢慢放下。"],
         warnings: ["不是腰往上拱；腰酸就抬低一点或去掉弹力带。", "膝盖不要被带子拉向内扣，脚不要外八乱打开。", "大腿后侧抽筋时，把脚稍微靠近屁股一点，注意用臀部发力。"],
         breath: "呼吸：抬起时呼气，顶端继续慢呼；放下时吸气。"
       },
@@ -1370,7 +1493,7 @@
       },
       deadBug: {
         name: "死虫式",
-        dose: "6-8 次/侧",
+        dose: "6 次/侧",
         cues: ["仰卧，双臂伸向天花板；髋和膝弯到约 90 度。", "轻收腹，肋骨向下，不把腰硬压死，但不能明显拱腰。", "对侧手和脚慢慢伸远：手向头顶方向，脚跟向远处点出去。", "伸到腰还能稳住的位置就停，慢慢回到起始位，再换另一侧。"],
         warnings: ["腰一拱就说明伸太远，马上缩短幅度。", "不要快速甩腿，不要抬头憋脖子。", "出现腿麻、放射痛或腰痛加重就停止。"],
         breath: "呼吸：手脚伸远时慢慢呼气，回收时吸气。"
@@ -1378,7 +1501,7 @@
       birdDog: {
         name: "鸟狗式",
         dose: "6 次/侧",
-        cues: ["四点支撑，手在肩下，膝盖在髋下；手指张开轻抓地，手腕疼可用拳头或前臂。", "先把肚子轻轻收住，背保持一张平桌子的感觉。", "伸对侧手和脚：右手配左腿，左手配右腿。", "手向前够、脚跟向后蹬，抬到和身体接近一条线，停 1-2 秒再慢慢收回。"],
+        cues: ["四点支撑，手在肩下，膝盖在髋下；手指张开轻抓地，手腕疼可用拳头或前臂。", "先把肚子轻轻收住，背保持一张平桌子的感觉。", "伸对侧手和脚：右手配左腿，左手配右腿。", "手向前够、脚跟向后蹬，抬到和身体接近一条线，停 2 秒再慢慢收回。"],
         warnings: ["不要同手同脚。", "腿不要甩高，腰不要塌，骨盆不要翻开。", "第二轮不稳时，只伸腿不伸手，或者只伸手不伸腿。"],
         breath: "呼吸：伸远时呼气，停住时保持细呼吸，收回时吸气。"
       },
@@ -1398,21 +1521,21 @@
       },
       inclinePush: {
         name: "桌边斜板俯卧撑",
-        dose: "8-10 次",
-        cues: ["找稳定桌边、厨房台面或高柜边，确认不会滑动。", "双手放在边缘上，略宽于肩；手腕不舒服时可握住边缘或用拳头支撑。", "双脚向后退，身体从头到脚成一条斜线，臀部和腹部轻轻收紧。", "肘向身体斜后方弯曲，约 30-45 度，不要横着打开。", "胸口靠近桌边后，把桌子推远，回到起始位。"],
+        dose: "8 次",
+        cues: ["找稳定桌边、厨房台面或高柜边，确认不会滑动。", "双手放在边缘上，略宽于肩；手腕不舒服时可握住边缘或用拳头支撑。", "双脚向后退，身体从头到脚成一条斜线，臀部和腹部轻轻收紧。", "肘向身体斜后方弯曲，约 35 度，不要横着打开。", "胸口靠近桌边后，把桌子推远，回到起始位。"],
         warnings: ["不要塌腰、撅屁股或耸肩。", "手腕痛就退回墙面俯卧撑或前臂靠墙推。", "桌子不稳就不要做。"],
         breath: "呼吸：身体下降时吸气，推起时呼气。"
       },
       sideStep: {
         name: "短弹力带左右侧步",
-        dose: "20-30 秒",
+        dose: "按计时持续",
         cues: ["短带套膝盖上方。", "微屈膝，小步横移。", "脚尖朝前，膝盖跟脚尖同方向。"],
         warnings: ["小腿不舒服就去掉弹力带或跳过。", "不要左右甩腰。"],
         breath: "呼吸：保持顺，不屏气。"
       },
       clamshell: {
         name: "侧卧蚌式开合",
-        dose: "10-12 次/侧",
+        dose: "10 次/侧",
         cues: ["侧卧，膝盖弯约 90 度，双脚并拢；短弹力带可套在膝盖上方。", "下方手臂垫头，上方手轻放骨盆或撑在身前，帮助身体稳定。", "骨盆上下叠好，腰不要向后滚。", "脚跟保持贴在一起，上侧膝盖像贝壳一样慢慢打开，顶端停 1 秒。", "慢慢合上，做完一侧再换另一侧。"],
         warnings: ["不是把身体往后翻；只有上侧膝盖动。", "髋外侧夹痛就减小幅度或去掉弹力带。", "腰不要扭，脖子不要用力抬着。"],
         breath: "呼吸：打开时呼气，合上时吸气。"
@@ -1461,35 +1584,35 @@
       },
       doorway: {
         name: "门框胸肩打开",
-        dose: "20-30 秒/侧",
+        dose: "按计时左右各一侧",
         cues: ["前臂贴门框，肘略低于肩。", "哪边前臂贴门框，哪边脚向前半步。", "身体整体轻轻往前，胸肩被拉开。"],
         warnings: ["不要用手腕顶。", "不要耸肩。", "不要扭腰，不能拉到麻。"],
         breath: "呼吸：慢慢呼吸，胸口打开。"
       },
       singleKneeHug: {
         name: "单腿抱膝呼吸",
-        dose: "5-8 次呼吸/侧",
+        dose: "4 次呼吸/侧",
         cues: ["仰卧屈膝，一侧膝盖轻轻抱向胸口。", "另一只脚继续踩地，腰背自然放松。", "换侧做，最后不必强求双膝一起抱。"],
         warnings: ["轻轻抱，不要猛拉。", "有腿麻、放射痛或腰痛加重就停止。", "腰突史优先单腿做。"],
         breath: "呼吸：每次呼气时让腰背放松一点。"
       },
       seatedBreath: {
         name: "坐姿放松呼吸",
-        dose: "60 秒",
+        dose: "按计时持续",
         cues: ["坐到椅子前半段，双脚踩地。", "头顶向上，肩膀放松。", "鼻吸口呼，把呼吸慢下来。"],
         warnings: ["不要憋气。", "头晕、胸闷就停止。"],
-        breath: "呼吸：吸 3 秒，呼 4-5 秒。"
+        breath: "呼吸：吸 3 秒，呼 5 秒。"
       },
       seatedCatCow: {
         name: "坐姿猫牛式",
-        dose: "6-8 次",
+        dose: "6 次",
         cues: ["坐直，双手轻放大腿。", "吸气时胸口轻轻向前。", "呼气时尾骨内收，背慢慢变圆。"],
         warnings: ["幅度小，不要猛弯腰。", "腰痛往腿上窜就停止。"],
         breath: "呼吸：吸气展开，呼气放松。"
       },
       seatedAnklePump: {
         name: "坐姿脚踝泵",
-        dose: "30-45 秒",
+        dose: "按计时持续",
         cues: ["脚跟踩地，脚尖上翘再放下。", "再换成脚尖踩地，脚跟抬起再放下。", "左右脚可以一起做。"],
         warnings: ["不要跺脚。", "小腿旧伤侧轻一点。"],
         breath: "呼吸：自然呼吸。"
@@ -1510,7 +1633,7 @@
       },
       seatedChestOpen: {
         name: "坐姿胸肩打开",
-        dose: "6-8 次",
+        dose: "6 次",
         cues: ["双手放身体两侧或轻扶椅边。", "肩胛轻轻向后下，胸口打开。", "停 2 秒后放松。"],
         warnings: ["不要耸肩。", "不要把腰硬挺起来。"],
         breath: "呼吸：打开时呼气，放松时吸气。"
@@ -1809,7 +1932,7 @@
       },
       travel: {
         title: "外出训练",
-        text: "外出训练为 2 轮，约 32-35 分钟。打开有弹力带时保留划船和侧步；没有弹力带时自动换成夹背和抱枕动作。小腿保护打开后自动去掉侧步和提踵。"
+        text: "外出训练为 2 轮，默认约 32 分钟。打开有弹力带时保留划船和侧步；没有弹力带时自动换成夹背和抱枕动作。小腿保护打开后自动去掉侧步和提踵。"
       },
       seat: {
         title: "座位活动",
@@ -1938,6 +2061,7 @@
 
     const TIMER_SESSION_STORAGE_KEY = "home-training-timer:sessions:v1";
     const CLOUD_CONFIG_STORAGE_KEY = "home-training-timer:cloud-config:v1";
+    const SHENK_SYNC_CONFIG_STORAGE_KEY = "training-assistant-v2:sync-config";
     const TIMER_DEVICE_STORAGE_KEY = "home-training-timer:device-id:v1";
     window.HomeTrainingTimerCatalog = routineCatalog;
 
@@ -2000,13 +2124,22 @@
       return next.endsWith("/api") ? next : `${next}/api`;
     }
 
+    function readLocalJson(key) {
+      try {
+        const raw = window.localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
     function loadCloudConfig() {
       try {
-        const raw = window.localStorage.getItem(CLOUD_CONFIG_STORAGE_KEY);
-        const config = raw ? JSON.parse(raw) : {};
+        const timerConfig = readLocalJson(CLOUD_CONFIG_STORAGE_KEY);
+        const shenkConfig = readLocalJson(SHENK_SYNC_CONFIG_STORAGE_KEY);
         return {
-          apiBase: normalizeCloudApiBase(config.apiBase || ""),
-          token: config.token || ""
+          apiBase: normalizeCloudApiBase(timerConfig.apiBase || shenkConfig.apiBase || ""),
+          token: timerConfig.token || shenkConfig.timerToken || ""
         };
       } catch (e) {
         return { apiBase: "", token: "" };
@@ -2348,7 +2481,7 @@
 
     function toStep(item) {
       const info = actionInfo[item[0]];
-      const actualDose = item[3] || `${formatDuration(item[1])} · ${info.dose}`;
+      const actualDose = item[3] || buildDoseLabel(item[0], item[1], info.dose);
       return {
         key: item[0],
         seconds: item[1],
@@ -2360,6 +2493,64 @@
         warnings: info.warnings,
         breath: info.breath
       };
+    }
+
+    function buildDoseLabel(key, seconds, dose) {
+      const target = buildExactDoseTarget(key, seconds, dose);
+      return target ? `计时 ${formatDuration(seconds)}；${target}` : `计时 ${formatDuration(seconds)}`;
+    }
+
+    function buildExactDoseTarget(key, seconds, dose) {
+      const bilateralStretch = {
+        50: "每侧 20 秒，换边 10 秒",
+        60: "每侧 25 秒，换边 10 秒",
+        70: "每侧 30 秒，换边 10 秒",
+        90: "每侧 40 秒，换边 10 秒"
+      };
+      const fixed = {
+        slowWalk: "按舒适节奏持续",
+        coolWalk: "逐步降速，持续走完",
+        marchFast: "小步快走持续完成",
+        sideShift: "左右轻移持续完成",
+        shadowPunch: "连续冲拳持续完成",
+        heelToeRock: "脚跟脚尖滚动持续完成",
+        sideStep: "小步侧移持续完成",
+        seatedAnklePump: "脚踝泵持续完成",
+        shoulderCircles: "前后各 10 圈",
+        scapula: "10 次，每次停 2 秒",
+        chinTuck: "8 次，每次停 2 秒",
+        thoracicTurn: "左右各 8 次",
+        ankle: "每侧顺逆各 10 圈",
+        hipHingeWarm: "8 次，剩余时间调整动作",
+        deskCatCow: "6 次，剩余时间慢呼吸",
+        standingW: "10 次，每次停 2 秒",
+        wallAngel: "8 次，剩余时间放松肩颈",
+        chairSit: "10 次，剩余时间站稳调整",
+        hipHinge: "8 次，剩余时间调整站姿",
+        bridge: "12 次，剩余时间慢呼吸",
+        bandBridge: "12 次，剩余时间慢呼吸",
+        coreSlide: "每侧 6 次",
+        deadBug: "每侧 6 次",
+        birdDog: "每侧 6 次",
+        row: "12 次，剩余时间整理弹力带",
+        forearmWallPush: "10 次，剩余时间调整站姿",
+        inclinePush: "8 次，剩余时间调整站姿",
+        clamshell: "每侧 10 次",
+        calfRaise: "12 次，剩余时间放松小腿",
+        pillow: "夹紧 5 秒 x 8 次",
+        singleKneeHug: "每侧 4 次慢呼吸",
+        seatedBreath: "慢呼吸持续完成",
+        seatedCatCow: "6 次，剩余时间慢呼吸",
+        seatedGluteSqueeze: "夹紧 5 秒 x 8 次",
+        seatedKneeExt: "每侧 8 次",
+        seatedChestOpen: "6 次，剩余时间放松肩颈",
+        rest: "调整呼吸，看下一项要点",
+        finish: "今天结束"
+      };
+      if (["calfStraight", "calfBent", "hamstring", "gluteStretch", "doorway"].includes(key)) {
+        return bilateralStretch[seconds] || "左右各一侧，按计时完成";
+      }
+      return fixed[key] || dose || "";
     }
 
     function formatDuration(seconds) {
@@ -2880,11 +3071,32 @@
       }
     }
 
+    function acceptHostCloudConfig(data) {
+      const payload = data && typeof data.payload === "object" ? data.payload : data;
+      if (!payload || typeof payload !== "object") return;
+      const apiBase = payload.cloudApiBase || payload.apiBase || "";
+      const token = payload.timerToken || payload.token || "";
+      if (!apiBase && !token) return;
+      saveCloudConfig({
+        apiBase: apiBase || state.cloudConfig.apiBase,
+        token: token || state.cloudConfig.token
+      });
+    }
+
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
     applyLaunchParams();
     updateWakeLabel();
     rebuild(true);
+
+    window.addEventListener("message", (event) => {
+      if (event.origin && event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (!data || typeof data !== "object") return;
+      if (data.type === "shenke.timer.config" || data.type === "shenke.timerConfig") {
+        acceptHostCloudConfig(data);
+      }
+    });
 
     window.addEventListener("load", () => {
       window.setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }), 0);
