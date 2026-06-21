@@ -2659,10 +2659,14 @@
       const preset = el.preset.value;
       const calfRelevant = ["strength", "indoorCardio", "travel"].includes(preset);
       const bandRelevant = preset === "travel";
+      const calfToggle = el.calfCare.closest(".toggle");
+      const bandToggle = el.hasBand.closest(".toggle");
       el.calfCare.disabled = !calfRelevant;
       el.hasBand.disabled = !bandRelevant;
-      el.calfCare.closest(".toggle").classList.toggle("disabled", !calfRelevant);
-      el.hasBand.closest(".toggle").classList.toggle("disabled", !bandRelevant);
+      calfToggle.hidden = !calfRelevant;
+      bandToggle.hidden = !bandRelevant;
+      calfToggle.classList.toggle("disabled", !calfRelevant);
+      bandToggle.classList.toggle("disabled", !bandRelevant);
     }
 
     function canUseWakeLock() {
