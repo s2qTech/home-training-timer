@@ -2122,7 +2122,8 @@
       cloudConfig: loadCloudConfig(),
       routineLoading: false,
       routineError: "",
-      routineCatalogSource: "builtin"
+      routineCatalogSource: "builtin",
+      hostOrigin: ""
     };
 
     const el = {
@@ -2260,6 +2261,7 @@
     async function loadCloudRoutineCatalog() {
       if (!state.cloudConfig.apiBase || !state.cloudConfig.token) {
         if (applyCachedRoutineCatalog("未配置云数据库，已使用本地缓存方案。")) return false;
+        if (blockMissingLaunchRoutine("未配置云数据库，也没有本地方案缓存，无法读取身刻指定的流程。")) return false;
         applyBuiltinRoutineCatalog("未配置云数据库，也没有本地方案缓存，已使用内置兜底。", true);
         return false;
       }
@@ -2278,11 +2280,20 @@
         return true;
       } catch (error) {
         if (applyCachedRoutineCatalog(`云端训练方案读取失败，已使用本地缓存：${error.message || "未知错误"}`)) return false;
+        if (blockMissingLaunchRoutine(`云端训练方案读取失败，且没有可用本地缓存：${error.message || "未知错误"}`)) return false;
         applyBuiltinRoutineCatalog(`云端训练方案读取失败，也没有本地缓存，已使用内置兜底：${error.message || "未知错误"}`, true);
         return false;
       } finally {
         state.routineLoading = false;
       }
+    }
+
+    function blockMissingLaunchRoutine(message) {
+      if (!state.launch.routineId) return false;
+      state.routineError = message;
+      state.launch.preset = registerUnavailableRoutine(state.launch.routineId, message);
+      renderCloudConfig(message, true);
+      return true;
     }
 
     async function loadLaunchRoutineIfNeeded() {
@@ -3320,11 +3331,32 @@
     function saveTimerSession(session) {
       try {
         const existing = JSON.parse(window.localStorage.getItem(TIMER_SESSION_STORAGE_KEY) || "[]");
-        const next = [session, ...existing.filter(item => item && item.id !== session.id)].slice(0, 100);
+        const merged = [session, ...existing.filter(item => item && item.id !== session.id)];
+        const mustKeep = merged.filter(item => ["pending", "error", "in_progress"].includes(item?.cloudState) || item?.completion === "in_progress");
+        const clean = merged.filter(item => !mustKeep.includes(item)).slice(0, 100);
+        const seen = new Set();
+        const next = [...mustKeep, ...clean].filter(item => {
+          if (!item?.id || seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
         window.localStorage.setItem(TIMER_SESSION_STORAGE_KEY, JSON.stringify(next));
       } catch (e) {
         // Local persistence is best-effort; the timer must keep working offline.
       }
+    }
+
+    function getHostMessageOrigin() {
+      if (state.hostOrigin) return state.hostOrigin;
+      try {
+        if (document.referrer) {
+          const origin = new URL(document.referrer).origin;
+          if (origin && origin !== "null") return origin;
+        }
+      } catch (error) {
+        // Referrer origin is optional.
+      }
+      return window.location.origin && window.location.origin !== "null" ? window.location.origin : "*";
     }
 
     function emitTimerSession(session) {
@@ -3338,8 +3370,9 @@
       } catch (e) {
         // Custom events are optional for older embedded browsers.
       }
-      if (window.parent && window.parent !== window) window.parent.postMessage(message, "*");
-      if (window.opener) window.opener.postMessage(message, "*");
+      const targetOrigin = getHostMessageOrigin();
+      if (window.parent && window.parent !== window) window.parent.postMessage(message, targetOrigin);
+      if (window.opener) window.opener.postMessage(message, targetOrigin);
     }
 
     function completeTimerSession(completion = "completed") {
@@ -3587,12 +3620,24 @@
       }
     }
 
-    function acceptHostCloudConfig(data) {
+    function isTrustedHostOrigin(origin) {
+      if (!origin) return false;
+      if (origin === window.location.origin) return true;
+      try {
+        return Boolean(document.referrer && new URL(document.referrer).origin === origin);
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function acceptHostCloudConfig(data, origin) {
       const payload = data && typeof data.payload === "object" ? data.payload : data;
       if (!payload || typeof payload !== "object") return;
       const apiBase = payload.cloudApiBase || payload.apiBase || "";
       const token = payload.timerToken || payload.token || "";
       if (!apiBase && !token) return;
+      const hostOrigin = payload.hostOrigin && payload.hostOrigin !== "null" ? payload.hostOrigin : origin;
+      state.hostOrigin = hostOrigin && hostOrigin !== "null" ? hostOrigin : state.hostOrigin;
       saveCloudConfig({
         apiBase: apiBase || state.cloudConfig.apiBase,
         token: token || state.cloudConfig.token
@@ -3616,11 +3661,11 @@
     }
 
     window.addEventListener("message", (event) => {
-      if (event.origin && event.origin !== window.location.origin) return;
+      if (event.origin && !isTrustedHostOrigin(event.origin)) return;
       const data = event.data;
       if (!data || typeof data !== "object") return;
       if (data.type === "shenke.timer.config" || data.type === "shenke.timerConfig") {
-        acceptHostCloudConfig(data);
+        acceptHostCloudConfig(data, event.origin);
       }
     });
 
