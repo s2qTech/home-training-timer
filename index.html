@@ -398,6 +398,14 @@
       box-shadow: 0 5px 14px rgba(38, 48, 47, .08);
     }
 
+    .btn:disabled,
+    .btn:disabled:hover {
+      cursor: not-allowed;
+      opacity: .56;
+      transform: none;
+      box-shadow: none;
+    }
+
     .btn:active {
       transform: scale(.98);
       box-shadow: none;
@@ -2063,6 +2071,32 @@
     const CLOUD_CONFIG_STORAGE_KEY = "home-training-timer:cloud-config:v1";
     const SHENK_SYNC_CONFIG_STORAGE_KEY = "training-assistant-v2:sync-config";
     const TIMER_DEVICE_STORAGE_KEY = "home-training-timer:device-id:v1";
+    const DYNAMIC_ROUTINE_PRESET_PREFIX = "cloud:";
+    const TRAINING_TYPE_ALIASES = {
+      easyWalk: "easy_walk",
+      qualityWalk: "quality_walk",
+      indoorCardio: "indoor_cardio",
+      travelStrength: "travel_strength",
+      seatRecovery: "seat_recovery",
+      walk: "easy_walk",
+      walking: "easy_walk",
+      cardio: "indoor_cardio",
+      warm_up: "warmup",
+      cool_down: "cooldown"
+    };
+    const PHASE_LABELS = {
+      warmup: "热身",
+      strength: "力量",
+      cardio: "有氧",
+      indoor_cardio: "有氧",
+      recovery: "恢复",
+      stretch: "拉伸",
+      cooldown: "冷身",
+      rest: "休息",
+      mobility: "活动",
+      activation: "唤醒",
+      density: "密度"
+    };
     window.HomeTrainingTimerCatalog = routineCatalog;
 
     const state = {
@@ -2077,7 +2111,9 @@
       wakeLock: null,
       launch: parseLaunchParams(),
       session: null,
-      cloudConfig: loadCloudConfig()
+      cloudConfig: loadCloudConfig(),
+      routineLoading: false,
+      routineError: ""
     };
 
     const el = {
@@ -2210,6 +2246,209 @@
       } catch (error) {
         renderCloudConfig(error.message || "连接失败", true);
       }
+    }
+
+    async function loadLaunchRoutineIfNeeded() {
+      const routineId = state.launch.routineId;
+      if (!routineId || state.launch.preset || externalRoutineMap[routineId]) return;
+      state.routineLoading = true;
+      state.routineError = "";
+      renderCloudConfig(`正在读取云端流程：${routineId}`);
+      try {
+        const definition = await fetchRoutineTemplateDefinition(routineId);
+        const preset = registerDynamicRoutine(definition);
+        state.launch.preset = preset;
+        renderCloudConfig(`已载入流程：${definition.displayName || routineId}`);
+      } catch (error) {
+        state.routineError = error.message || `无法读取流程：${routineId}`;
+        state.launch.preset = registerUnavailableRoutine(routineId, state.routineError);
+        renderCloudConfig(state.routineError, true);
+      } finally {
+        state.routineLoading = false;
+      }
+    }
+
+    async function retryLaunchRoutineLoad() {
+      if (!state.routineError || !state.launch.routineId) return;
+      const mappedPreset = externalRoutineMap[state.launch.routineId] || "";
+      if (mappedPreset.startsWith("missing:")) {
+        delete routineCatalog.presets[mappedPreset];
+        delete externalRoutineMap[state.launch.routineId];
+        Object.keys(planGroups).forEach(scene => {
+          planGroups[scene] = planGroups[scene].filter(plan => plan.value !== mappedPreset);
+        });
+        delete planSceneByPreset[mappedPreset];
+        delete presetNotes[mappedPreset];
+      }
+      state.launch.preset = "";
+      state.routineError = "";
+      await loadLaunchRoutineIfNeeded();
+      applyLaunchParams();
+      rebuild(true);
+    }
+
+    function maybeRetryLaunchRoutineLoad() {
+      retryLaunchRoutineLoad().catch(error => {
+        state.routineError = error.message || "重新读取流程失败";
+        renderCloudConfig(state.routineError, true);
+        rebuild(true);
+      });
+    }
+
+    async function fetchRoutineTemplateDefinition(routineId) {
+      if (!state.cloudConfig.apiBase || !state.cloudConfig.token) {
+        throw new Error(`计时器没有云数据库配置，无法读取流程：${routineId}`);
+      }
+      const result = await cloudRequest("/records/query", {
+        body: { entities: ["routine_templates"] }
+      });
+      const records = Array.isArray(result.records) ? result.records : [];
+      const envelope = records.find(record => record.id === routineId || record.data?.id === routineId);
+      if (!envelope) throw new Error(`云端没有找到流程：${routineId}`);
+      return routineTemplateToDefinition(envelope.data || {});
+    }
+
+    function registerDynamicRoutine(definition) {
+      const preset = `${DYNAMIC_ROUTINE_PRESET_PREFIX}${definition.routineId}`;
+      routineCatalog.presets[preset] = definition;
+      externalRoutineMap[definition.routineId] = preset;
+      const scene = definition.scene || sceneFromTrainingType(definition.trainingType);
+      if (!planGroups[scene]) planGroups[scene] = [];
+      if (!planGroups[scene].some(plan => plan.value === preset)) {
+        planGroups[scene].push({
+          value: preset,
+          label: `${definition.displayName || "云端流程"}${definition.estimatedMinutes ? `：约${Math.round(definition.estimatedMinutes)}分` : ""}`
+        });
+      }
+      planSceneByPreset[preset] = scene;
+      presetNotes[preset] = {
+        title: definition.displayName || "云端流程",
+        text: "这套流程来自身刻确认后的 routine_templates。"
+      };
+      return preset;
+    }
+
+    function registerUnavailableRoutine(routineId, message) {
+      const preset = `missing:${routineId}`;
+      routineCatalog.presets[preset] = {
+        routineId,
+        routineVersion: "",
+        displayName: "流程读取失败",
+        scene: "home",
+        trainingType: "recovery",
+        mode: "sequence",
+        steps: [],
+        source: "missing"
+      };
+      externalRoutineMap[routineId] = preset;
+      if (!planGroups.home.some(plan => plan.value === preset)) {
+        planGroups.home.push({ value: preset, label: "流程读取失败" });
+      }
+      planSceneByPreset[preset] = "home";
+      presetNotes[preset] = { title: "流程读取失败", text: message };
+      return preset;
+    }
+
+    function routineTemplateToDefinition(template) {
+      const routineId = template.id || template.routineId || template.routine_id;
+      if (!routineId) throw new Error("云端流程缺少 routineId。");
+      const rawSteps = Array.isArray(template.steps) ? template.steps : parseJsonArray(template.stepsJson || template.steps_json);
+      const steps = rawSteps.map(templateStepToCatalogItem).filter(Boolean);
+      if (!steps.length) throw new Error(`云端流程没有可执行步骤：${routineId}`);
+      const trainingType = normalizeTrainingType(template.trainingType || template.training_type || template.type);
+      const options = parseJsonObject(template.defaultOptions || template.default_options || template.defaultOptionsJson || template.default_options_json);
+      return {
+        routineId,
+        routineVersion: template.version || template.routineVersion || template.routine_version || "",
+        displayName: cleanRoutineTitle(template.title || template.name || routineId),
+        displayVariant: cleanRoutineTitle(template.variant || template.routineVariant || template.routine_variant || ""),
+        scene: template.scene || sceneFromTrainingType(trainingType),
+        trainingType,
+        estimatedMinutes: Number(template.estimatedMinutes || template.estimated_minutes || 0) || null,
+        mode: "sequence",
+        steps,
+        defaultRestSeconds: Number(options.defaultRestSeconds || options.default_rest_seconds || template.defaultRestSeconds || 20) || 20,
+        source: "cloud"
+      };
+    }
+
+    function parseJsonArray(value) {
+      const parsed = parseJsonValue(value);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+
+    function parseJsonObject(value) {
+      const parsed = parseJsonValue(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    }
+
+    function parseJsonValue(value) {
+      if (!value) return null;
+      if (typeof value !== "string") return value;
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function templateStepToCatalogItem(step, index) {
+      if (Array.isArray(step)) {
+        const key = resolveActionKey(step[0] || `cloud_step_${index + 1}`);
+        const seconds = Number(step[1] || 60);
+        if (!Number.isFinite(seconds) || seconds <= 0) return null;
+        return [key, Math.round(seconds), phaseLabel(step[2] || "训练"), step[3] || "", step[4]];
+      }
+      if (!step || typeof step !== "object") return null;
+      const rawKey = step.stepId || step.step_id || step.key || `cloud_step_${index + 1}`;
+      const key = resolveActionKey(rawKey);
+      const seconds = Number(step.durationSeconds ?? step.duration_seconds ?? step.seconds ?? step.plannedSeconds ?? step.planned_seconds ?? 60);
+      if (!Number.isFinite(seconds) || seconds <= 0) return null;
+      const phase = phaseLabel(step.phase || step.category || step.trainingType || step.training_type);
+      const name = cleanRoutineTitle(step.name || step.title || actionInfo[key]?.name || rawKey);
+      const dose = step.targetReps || step.target_reps || step.dose || step.label || buildDoseLabel(key, seconds, actionInfo[key]?.dose || "");
+      return [key, Math.round(seconds), phase, dose, {
+        name,
+        dose,
+        cues: normalizeStringList(step.cues),
+        warnings: normalizeStringList(step.warnings),
+        breath: step.breath || step.breathing || ""
+      }];
+    }
+
+    function resolveActionKey(value) {
+      const raw = String(value || "").trim();
+      const camel = raw.replace(/[_-]([a-zA-Z0-9])/g, (_, char) => char.toUpperCase());
+      return actionInfo[raw] ? raw : actionInfo[camel] ? camel : camel || raw;
+    }
+
+    function normalizeStringList(value) {
+      if (Array.isArray(value)) return value.map(item => String(item || "").trim()).filter(Boolean);
+      const text = String(value || "").trim();
+      return text ? [text] : [];
+    }
+
+    function normalizeTrainingType(value) {
+      const raw = String(value || "").trim();
+      const alias = TRAINING_TYPE_ALIASES[raw] || TRAINING_TYPE_ALIASES[raw.replace(/-/g, "_")];
+      return alias || raw || "strength";
+    }
+
+    function sceneFromTrainingType(type) {
+      const value = normalizeTrainingType(type);
+      if (["warmup", "stretch", "easy_walk", "quality_walk"].includes(value)) return "walk";
+      if (["recovery", "seat_recovery"].includes(value)) return "recovery";
+      if (value === "travel_strength") return "travel";
+      return "home";
+    }
+
+    function phaseLabel(value) {
+      const raw = String(value || "").trim();
+      return PHASE_LABELS[raw] || PHASE_LABELS[raw.replace(/-/g, "_")] || raw || "训练";
+    }
+
+    function cleanRoutineTitle(value) {
+      return String(value || "").replace(/\s*[（(]?\s*(?:v|版本)\s*\d+(?:[._]\d+)*\s*[)）]?/gi, "").trim();
     }
 
     function getStoredTimerSessions() {
@@ -2368,6 +2607,7 @@
     }
 
     function makeStepsFromRoutineCatalog() {
+      if (state.routineError || state.routineLoading) return [finishStep()];
       const preset = el.preset.value;
       const definition = getRoutineDefinition(preset);
       const selectedRestSeconds = Number(el.rest.value);
@@ -2480,7 +2720,13 @@
     }
 
     function toStep(item) {
-      const info = actionInfo[item[0]];
+      const info = item[4] || actionInfo[item[0]] || {
+        name: item[3] || item[0],
+        dose: item[3] || "",
+        cues: [],
+        warnings: ["这是云端流程中的新动作，请按教练说明控制强度。"],
+        breath: "呼吸：保持自然呼吸。"
+      };
       const actualDose = item[3] || buildDoseLabel(item[0], item[1], info.dose);
       return {
         key: item[0],
@@ -2489,9 +2735,9 @@
         phase: item[2],
         name: info.name,
         dose: actualDose,
-        cues: info.cues,
-        warnings: info.warnings,
-        breath: info.breath
+        cues: Array.isArray(info.cues) && info.cues.length ? info.cues : ["按计时完成，保持动作质量。"],
+        warnings: Array.isArray(info.warnings) && info.warnings.length ? info.warnings : ["出现疼痛、麻、刺或头晕时停止。"],
+        breath: info.breath || "呼吸：保持自然呼吸。"
       };
     }
 
@@ -2587,7 +2833,7 @@
       const step = state.steps[state.index] || toStep(["finish", 1, "完成"]);
       const next = state.steps[state.index + 1];
       const previewNext = step.key === "rest" && next && next.key !== "finish";
-      el.status.textContent = state.running ? "进行中" : state.started ? "已暂停" : "未开始";
+      el.status.textContent = state.routineError ? "流程读取失败" : state.routineLoading ? "读取流程中" : state.running ? "进行中" : state.started ? "已暂停" : "未开始";
       el.phase.textContent = step.phase + (step.round ? ` · 第 ${step.round} 轮` : "");
       el.phase.className = "phase " + (step.key === "rest" ? "rest" : step.key === "finish" ? "stop" : (step.phase === "力量" || step.phase === "密度") ? "work" : "");
       el.count.textContent = `${Math.min(state.index + 1, state.steps.length)} / ${state.steps.length}`;
@@ -2634,21 +2880,38 @@
       const actions = state.steps.filter(step => !["rest", "finish"].includes(step.key)).length;
       el.totalTime.textContent = `${Math.round(seconds / 60)} 分`;
       el.workCount.textContent = `${actions} 项`;
+      if (state.routineError) {
+        el.planNote.innerHTML = `<b>流程读取失败</b>${state.routineError}`;
+        return;
+      }
+      if (state.routineLoading) {
+        el.planNote.innerHTML = `<b>正在读取流程</b>正在从身刻云数据库读取 routine_templates。`;
+        return;
+      }
       const note = presetNotes[el.preset.value] || presetNotes.strength;
       const extras = [];
-      if (el.calfCare.checked && ["strength", "indoorCardio", "travel"].includes(el.preset.value)) {
+      const definition = getRoutineDefinition();
+      const trainingType = normalizeTrainingType(definition.trainingType);
+      if (el.calfCare.checked && ["strength", "indoor_cardio", "travel_strength"].includes(trainingType)) {
         extras.push("已开启小腿保护：减少侧向刺激和小腿密度，疼痛时仍应直接跳过相关动作。");
       }
-      if (el.preset.value === "travel") {
+      if (el.preset.value === "travel" || trainingType === "travel_strength") {
         extras.push(el.hasBand.checked ? "外出训练将使用弹力带划船；短带侧步小腿紧时可跳过。" : "未带弹力带：已替换为不依赖器具的胸背动作。");
       }
       el.planNote.innerHTML = `<b>${note.title}</b>${note.text}${extras.length ? `<br><br>${extras.join(" ")}` : ""}`;
     }
 
     function updateStartButton() {
+      el.startBtn.disabled = Boolean(state.routineError || state.routineLoading);
       if (state.running) {
         el.startText.textContent = "暂停";
         el.startIcon.setAttribute("d", "M8 5h3v14H8zM13 5h3v14h-3z");
+      } else if (state.routineError) {
+        el.startText.textContent = "不可开始";
+        el.startIcon.setAttribute("d", "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5v6h-2V7h2zm0 8v2h-2v-2h2z");
+      } else if (state.routineLoading) {
+        el.startText.textContent = "读取中";
+        el.startIcon.setAttribute("d", "M12 2v4a6 6 0 1 1-6 6H2a10 10 0 1 0 10-10z");
       } else {
         el.startText.textContent = state.started ? "继续" : "开始";
         el.startIcon.setAttribute("d", "M8 5v14l11-7z");
@@ -2657,8 +2920,10 @@
 
     function updateConditionControls() {
       const preset = el.preset.value;
-      const calfRelevant = ["strength", "indoorCardio", "travel"].includes(preset);
-      const bandRelevant = preset === "travel";
+      const definition = getRoutineDefinition(preset);
+      const trainingType = normalizeTrainingType(definition.trainingType);
+      const calfRelevant = ["strength", "indoor_cardio", "travel_strength"].includes(trainingType);
+      const bandRelevant = preset === "travel" || trainingType === "travel_strength";
       const calfToggle = el.calfCare.closest(".toggle");
       const bandToggle = el.hasBand.closest(".toggle");
       el.calfCare.disabled = !calfRelevant;
@@ -2851,6 +3116,7 @@
     }
 
     function start() {
+      if (state.routineError || state.routineLoading) return;
       if (state.running) return;
       state.running = true;
       state.started = true;
@@ -3001,6 +3267,7 @@
         token: el.cloudToken.value
       });
       renderCloudConfig("云数据库配置已保存。");
+      maybeRetryLaunchRoutineLoad();
       retryPendingCloudSessions();
     });
     el.cloudTest.addEventListener("click", testCloudConnection);
@@ -3068,9 +3335,9 @@
       if (launch.voice !== null) el.voice.checked = launch.voice;
       if (launch.beep !== null) el.beep.checked = launch.beep;
       if (launch.wake !== null) el.wake.checked = launch.wake;
-      if (launch.cloudApiBase) {
+      if (launch.cloudApiBase && !state.routineError) {
         saveCloudConfig({ apiBase: launch.cloudApiBase, token: state.cloudConfig.token });
-      } else {
+      } else if (!state.routineError) {
         renderCloudConfig();
       }
     }
@@ -3085,13 +3352,20 @@
         apiBase: apiBase || state.cloudConfig.apiBase,
         token: token || state.cloudConfig.token
       });
+      maybeRetryLaunchRoutineLoad();
     }
 
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-    applyLaunchParams();
-    updateWakeLabel();
-    rebuild(true);
+    async function bootstrap() {
+      if (state.launch.cloudApiBase) {
+        saveCloudConfig({ apiBase: state.launch.cloudApiBase, token: state.cloudConfig.token });
+      }
+      await loadLaunchRoutineIfNeeded();
+      applyLaunchParams();
+      updateWakeLabel();
+      rebuild(true);
+    }
 
     window.addEventListener("message", (event) => {
       if (event.origin && event.origin !== window.location.origin) return;
@@ -3105,6 +3379,8 @@
     window.addEventListener("load", () => {
       window.setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }), 0);
     });
+
+    bootstrap();
 
     if ("serviceWorker" in navigator && location.protocol === "https:") {
       window.addEventListener("load", () => {
