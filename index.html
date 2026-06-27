@@ -2258,11 +2258,11 @@
       try {
         const definitions = await fetchRoutineTemplateDefinitions();
         if (!definitions.length) throw new Error("云端没有可执行的训练方案。");
-        replaceRoutineCatalogWithCloud(definitions);
+        const stats = syncRoutineCatalogWithCloud(definitions);
         if (state.launch.routineId && externalRoutineMap[state.launch.routineId]) {
           state.launch.preset = externalRoutineMap[state.launch.routineId];
         }
-        renderCloudConfig(`已从云端载入 ${definitions.length} 个训练方案。`);
+        renderCloudConfig(`已从云端同步 ${stats.updated + stats.added} 个计时器方案。`);
         return true;
       } catch (error) {
         renderCloudConfig(`云端训练方案读取失败，继续使用内置方案：${error.message || "未知错误"}`, true);
@@ -2363,20 +2363,52 @@
         });
     }
 
-    function replaceRoutineCatalogWithCloud(definitions) {
-      Object.keys(routineCatalog.presets).forEach(preset => {
-        if (preset.startsWith(DYNAMIC_ROUTINE_PRESET_PREFIX) || preset.startsWith("missing:")) {
-          delete routineCatalog.presets[preset];
+    function syncRoutineCatalogWithCloud(definitions) {
+      removeDynamicRoutineEntries();
+      const stats = { updated: 0, added: 0 };
+      definitions.forEach(definition => {
+        const preset = externalRoutineMap[definition.routineId];
+        if (preset && routineCatalog.presets[preset] && !isDynamicRoutinePreset(preset)) {
+          routineCatalog.presets[preset] = {
+            ...routineCatalog.presets[preset],
+            ...definition,
+            displayName: definition.displayName || routineCatalog.presets[preset].displayName,
+            displayVariant: definition.displayVariant || routineCatalog.presets[preset].displayVariant || ""
+          };
+          externalRoutineMap[definition.routineId] = preset;
+          stats.updated += 1;
+          return;
+        }
+        if (definition.timerVisible) {
+          registerDynamicRoutine(definition);
+          stats.added += 1;
         }
       });
-      Object.keys(planGroups).forEach(scene => { planGroups[scene] = []; });
-      Object.keys(planSceneByPreset).forEach(preset => { delete planSceneByPreset[preset]; });
-      Object.keys(externalRoutineMap).forEach(routineId => { delete externalRoutineMap[routineId]; });
-      Object.entries(routineCatalog.presets).forEach(([preset, routine]) => {
-        if (routine?.routineId) externalRoutineMap[routine.routineId] = preset;
-      });
-      definitions.forEach(registerDynamicRoutine);
       routineCatalog.catalogVersion = `cloud-${new Date().toISOString()}`;
+      return stats;
+    }
+
+    function removeDynamicRoutineEntries() {
+      Object.keys(routineCatalog.presets).forEach(preset => {
+        if (isDynamicRoutinePreset(preset)) delete routineCatalog.presets[preset];
+      });
+      Object.keys(planGroups).forEach(scene => {
+        planGroups[scene] = planGroups[scene].filter(plan => !isDynamicRoutinePreset(plan.value));
+      });
+      Object.keys(planSceneByPreset).forEach(preset => {
+        if (isDynamicRoutinePreset(preset)) delete planSceneByPreset[preset];
+      });
+      Object.keys(presetNotes).forEach(preset => {
+        if (isDynamicRoutinePreset(preset)) delete presetNotes[preset];
+      });
+      Object.keys(externalRoutineMap).forEach(key => {
+        if (isDynamicRoutinePreset(externalRoutineMap[key])) delete externalRoutineMap[key];
+      });
+    }
+
+    function isDynamicRoutinePreset(preset) {
+      return String(preset || "").startsWith(DYNAMIC_ROUTINE_PRESET_PREFIX)
+        || String(preset || "").startsWith("missing:");
     }
 
     function registerDynamicRoutine(definition) {
@@ -2388,7 +2420,7 @@
       if (!planGroups[scene].some(plan => plan.value === preset)) {
         planGroups[scene].push({
           value: preset,
-          label: `${definition.displayName || "云端流程"}${definition.estimatedMinutes ? `：约${Math.round(definition.estimatedMinutes)}分` : ""}`
+          label: `${definition.displayName || "云端流程"}${definition.displayVariant ? ` · ${definition.displayVariant}` : ""}${definition.estimatedMinutes ? `：约${Math.round(definition.estimatedMinutes)}分` : ""}`
         });
       }
       planSceneByPreset[preset] = scene;
@@ -2436,6 +2468,7 @@
         scene: template.scene || sceneFromTrainingType(trainingType),
         trainingType,
         estimatedMinutes: Number(template.estimatedMinutes || template.estimated_minutes || 0) || null,
+        timerVisible: isTimerVisibleTemplate(template),
         mode: "sequence",
         steps,
         defaultRestSeconds: Number(options.defaultRestSeconds || options.default_rest_seconds || template.defaultRestSeconds || 20) || 20,
@@ -2461,6 +2494,32 @@
       } catch (error) {
         return null;
       }
+    }
+
+    function isTimerVisibleTemplate(template) {
+      const explicit = parseBooleanValue(
+        template.timerVisible
+        ?? template.timer_visible
+        ?? template.visibleInTimer
+        ?? template.visible_in_timer
+        ?? template.showInTimer
+        ?? template.show_in_timer
+        ?? template.isTimerRoutine
+        ?? template.is_timer_routine
+      );
+      if (explicit !== null) return explicit;
+      const owner = String(template.owner || template.source || template.app || "").toLowerCase();
+      return owner === "timer" || owner === "home-training-timer";
+    }
+
+    function parseBooleanValue(value) {
+      if (value === null || value === undefined || value === "") return null;
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      const text = String(value).trim().toLowerCase();
+      if (["1", "true", "yes", "on", "visible"].includes(text)) return true;
+      if (["0", "false", "no", "off", "hidden"].includes(text)) return false;
+      return null;
     }
 
     function templateStepToCatalogItem(step, index) {
