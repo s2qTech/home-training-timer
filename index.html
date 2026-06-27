@@ -2069,6 +2069,7 @@
 
     const TIMER_SESSION_STORAGE_KEY = "home-training-timer:sessions:v1";
     const CLOUD_CONFIG_STORAGE_KEY = "home-training-timer:cloud-config:v1";
+    const ROUTINE_CATALOG_CACHE_KEY = "home-training-timer:routine-catalog-cache:v1";
     const SHENK_SYNC_CONFIG_STORAGE_KEY = "training-assistant-v2:sync-config";
     const TIMER_DEVICE_STORAGE_KEY = "home-training-timer:device-id:v1";
     const DYNAMIC_ROUTINE_PRESET_PREFIX = "cloud:";
@@ -2098,6 +2099,9 @@
       density: "密度"
     };
     window.HomeTrainingTimerCatalog = routineCatalog;
+    const BUILTIN_ROUTINE_PRESETS = clonePlainData(routineCatalog.presets);
+    const BUILTIN_PLAN_GROUPS = clonePlainData(planGroups);
+    const BUILTIN_PRESET_NOTES = clonePlainData(presetNotes);
 
     const state = {
       steps: [],
@@ -2113,7 +2117,8 @@
       session: null,
       cloudConfig: loadCloudConfig(),
       routineLoading: false,
-      routineError: ""
+      routineError: "",
+      routineCatalogSource: "builtin"
     };
 
     const el = {
@@ -2250,6 +2255,8 @@
 
     async function loadCloudRoutineCatalog() {
       if (!state.cloudConfig.apiBase || !state.cloudConfig.token) {
+        if (applyCachedRoutineCatalog("未配置云数据库，已使用本地缓存方案。")) return false;
+        applyBuiltinRoutineCatalog("未配置云数据库，也没有本地方案缓存，已使用内置兜底。", true);
         return false;
       }
       state.routineLoading = true;
@@ -2258,14 +2265,16 @@
       try {
         const definitions = await fetchRoutineTemplateDefinitions();
         if (!definitions.length) throw new Error("云端没有可执行的训练方案。");
-        const stats = syncRoutineCatalogWithCloud(definitions);
+        const stats = applyRoutineCatalogDefinitions(definitions, "cloud");
+        saveRoutineCatalogCache(definitions);
         if (state.launch.routineId && externalRoutineMap[state.launch.routineId]) {
           state.launch.preset = externalRoutineMap[state.launch.routineId];
         }
-        renderCloudConfig(`已从云端同步 ${stats.updated + stats.added} 个计时器方案。`);
+        renderCloudConfig(`已从云端同步 ${stats.visible} 个计时器方案。`);
         return true;
       } catch (error) {
-        renderCloudConfig(`云端训练方案读取失败，继续使用内置方案：${error.message || "未知错误"}`, true);
+        if (applyCachedRoutineCatalog(`云端训练方案读取失败，已使用本地缓存：${error.message || "未知错误"}`)) return false;
+        applyBuiltinRoutineCatalog(`云端训练方案读取失败，也没有本地缓存，已使用内置兜底：${error.message || "未知错误"}`, true);
         return false;
       } finally {
         state.routineLoading = false;
@@ -2359,50 +2368,108 @@
           const leftSceneIndex = sceneOrder.includes(left.scene) ? sceneOrder.indexOf(left.scene) : sceneOrder.length;
           const rightSceneIndex = sceneOrder.includes(right.scene) ? sceneOrder.indexOf(right.scene) : sceneOrder.length;
           return leftSceneIndex - rightSceneIndex
+            || Number(right.isDefault || false) - Number(left.isDefault || false)
+            || (Number(left.sortOrder) || 0) - (Number(right.sortOrder) || 0)
             || String(left.displayName || "").localeCompare(String(right.displayName || ""), "zh-Hans-CN");
         });
     }
 
-    function syncRoutineCatalogWithCloud(definitions) {
-      removeDynamicRoutineEntries();
-      const stats = { updated: 0, added: 0 };
+    function applyRoutineCatalogDefinitions(definitions, source) {
+      resetRoutineCatalog(source);
+      const launchRoutineId = state.launch.routineId || "";
+      const stats = { total: 0, visible: 0 };
       definitions.forEach(definition => {
-        const preset = externalRoutineMap[definition.routineId];
-        if (preset && routineCatalog.presets[preset] && !isDynamicRoutinePreset(preset)) {
-          routineCatalog.presets[preset] = {
-            ...routineCatalog.presets[preset],
-            ...definition,
-            displayName: definition.displayName || routineCatalog.presets[preset].displayName,
-            displayVariant: definition.displayVariant || routineCatalog.presets[preset].displayVariant || ""
-          };
-          externalRoutineMap[definition.routineId] = preset;
-          stats.updated += 1;
-          return;
-        }
-        if (definition.timerVisible) {
-          registerDynamicRoutine(definition);
-          stats.added += 1;
-        }
+        const visible = Boolean(definition.timerVisible || definition.routineId === launchRoutineId);
+        if (!visible) return;
+        registerDynamicRoutine(definition, { addToMenu: true });
+        stats.total += 1;
+        stats.visible += 1;
       });
-      routineCatalog.catalogVersion = `cloud-${new Date().toISOString()}`;
+      if (!stats.visible) throw new Error("云端没有可显示的计时器方案。");
+      routineCatalog.catalogVersion = `${source}-${new Date().toISOString()}`;
+      state.routineCatalogSource = source;
+      sortPlanGroups();
       return stats;
     }
 
-    function removeDynamicRoutineEntries() {
-      Object.keys(routineCatalog.presets).forEach(preset => {
-        if (isDynamicRoutinePreset(preset)) delete routineCatalog.presets[preset];
+    function resetRoutineCatalog(source) {
+      Object.keys(routineCatalog.presets).forEach(preset => { delete routineCatalog.presets[preset]; });
+      Object.keys(planGroups).forEach(scene => { delete planGroups[scene]; });
+      Object.keys(planSceneByPreset).forEach(preset => { delete planSceneByPreset[preset]; });
+      Object.keys(presetNotes).forEach(preset => { delete presetNotes[preset]; });
+      Object.keys(externalRoutineMap).forEach(key => { delete externalRoutineMap[key]; });
+      routineCatalog.source = source;
+    }
+
+    function applyCachedRoutineCatalog(message = "") {
+      const definitions = loadRoutineCatalogCache();
+      if (!definitions.length) return false;
+      try {
+        const stats = applyRoutineCatalogDefinitions(definitions, "cache");
+        renderCloudConfig(message || `已使用本地缓存方案：${stats.visible} 个。`);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function applyBuiltinRoutineCatalog(message = "", isError = false) {
+      restoreObject(routineCatalog.presets, BUILTIN_ROUTINE_PRESETS);
+      restoreObject(planGroups, BUILTIN_PLAN_GROUPS);
+      restoreObject(presetNotes, BUILTIN_PRESET_NOTES);
+      Object.keys(planSceneByPreset).forEach(preset => { delete planSceneByPreset[preset]; });
+      Object.entries(planGroups).forEach(([scene, plans]) => {
+        plans.forEach(plan => { planSceneByPreset[plan.value] = scene; });
       });
+      Object.keys(externalRoutineMap).forEach(key => { delete externalRoutineMap[key]; });
+      Object.entries(routineCatalog.presets).forEach(([preset, routine]) => {
+        externalRoutineMap[preset] = preset;
+        if (routine?.routineId) externalRoutineMap[routine.routineId] = preset;
+      });
+      routineCatalog.catalogVersion = `builtin-${new Date().toISOString()}`;
+      routineCatalog.source = "builtin";
+      state.routineCatalogSource = "builtin";
+      renderCloudConfig(message, isError);
+    }
+
+    function saveRoutineCatalogCache(definitions) {
+      try {
+        window.localStorage.setItem(ROUTINE_CATALOG_CACHE_KEY, JSON.stringify({
+          cachedAt: new Date().toISOString(),
+          definitions
+        }));
+      } catch (error) {
+        // Cache is only an offline convenience; a storage failure should not block training.
+      }
+    }
+
+    function loadRoutineCatalogCache() {
+      try {
+        const payload = JSON.parse(window.localStorage.getItem(ROUTINE_CATALOG_CACHE_KEY) || "{}");
+        return Array.isArray(payload.definitions) ? payload.definitions : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function restoreObject(target, source) {
+      Object.keys(target).forEach(key => { delete target[key]; });
+      Object.assign(target, clonePlainData(source));
+    }
+
+    function clonePlainData(value) {
+      return JSON.parse(JSON.stringify(value || {}));
+    }
+
+    function sortPlanGroups() {
       Object.keys(planGroups).forEach(scene => {
-        planGroups[scene] = planGroups[scene].filter(plan => !isDynamicRoutinePreset(plan.value));
-      });
-      Object.keys(planSceneByPreset).forEach(preset => {
-        if (isDynamicRoutinePreset(preset)) delete planSceneByPreset[preset];
-      });
-      Object.keys(presetNotes).forEach(preset => {
-        if (isDynamicRoutinePreset(preset)) delete presetNotes[preset];
-      });
-      Object.keys(externalRoutineMap).forEach(key => {
-        if (isDynamicRoutinePreset(externalRoutineMap[key])) delete externalRoutineMap[key];
+        planGroups[scene].sort((left, right) => {
+          const leftRoutine = routineCatalog.presets[left.value] || {};
+          const rightRoutine = routineCatalog.presets[right.value] || {};
+          return Number(rightRoutine.isDefault || false) - Number(leftRoutine.isDefault || false)
+            || (Number(leftRoutine.sortOrder) || 0) - (Number(rightRoutine.sortOrder) || 0)
+            || String(left.label || "").localeCompare(String(right.label || ""), "zh-Hans-CN");
+        });
       });
     }
 
@@ -2411,19 +2478,22 @@
         || String(preset || "").startsWith("missing:");
     }
 
-    function registerDynamicRoutine(definition) {
+    function registerDynamicRoutine(definition, options = {}) {
       const preset = `${DYNAMIC_ROUTINE_PRESET_PREFIX}${definition.routineId}`;
       routineCatalog.presets[preset] = definition;
+      externalRoutineMap[preset] = preset;
       externalRoutineMap[definition.routineId] = preset;
       const scene = definition.scene || sceneFromTrainingType(definition.trainingType);
-      if (!planGroups[scene]) planGroups[scene] = [];
-      if (!planGroups[scene].some(plan => plan.value === preset)) {
-        planGroups[scene].push({
-          value: preset,
-          label: `${definition.displayName || "云端流程"}${definition.displayVariant ? ` · ${definition.displayVariant}` : ""}${definition.estimatedMinutes ? `：约${Math.round(definition.estimatedMinutes)}分` : ""}`
-        });
+      if (options.addToMenu !== false) {
+        if (!planGroups[scene]) planGroups[scene] = [];
+        if (!planGroups[scene].some(plan => plan.value === preset)) {
+          planGroups[scene].push({
+            value: preset,
+            label: `${definition.displayName || "云端流程"}${definition.displayVariant ? ` · ${definition.displayVariant}` : ""}${definition.estimatedMinutes ? `：约${Math.round(definition.estimatedMinutes)}分` : ""}`
+          });
+        }
+        planSceneByPreset[preset] = scene;
       }
-      planSceneByPreset[preset] = scene;
       presetNotes[preset] = {
         title: definition.displayName || "云端流程",
         text: "这套流程来自身刻确认后的 routine_templates。"
@@ -2444,6 +2514,7 @@
         source: "missing"
       };
       externalRoutineMap[routineId] = preset;
+      if (!planGroups.home) planGroups.home = [];
       if (!planGroups.home.some(plan => plan.value === preset)) {
         planGroups.home.push({ value: preset, label: "流程读取失败" });
       }
@@ -2469,6 +2540,8 @@
         trainingType,
         estimatedMinutes: Number(template.estimatedMinutes || template.estimated_minutes || 0) || null,
         timerVisible: isTimerVisibleTemplate(template),
+        sortOrder: Number(template.sortOrder ?? template.sort_order ?? 0) || 0,
+        isDefault: parseBooleanValue(template.isDefault ?? template.is_default) === true,
         mode: "sequence",
         steps,
         defaultRestSeconds: Number(options.defaultRestSeconds || options.default_rest_seconds || template.defaultRestSeconds || 20) || 20,
@@ -2660,7 +2733,9 @@
 
     function updateSceneButtons() {
       el.sceneButtons.forEach(button => {
+        const hasPlans = Boolean((planGroups[button.dataset.scene] || []).length);
         const active = button.dataset.scene === state.scene;
+        button.disabled = !hasPlans;
         button.classList.toggle("active", active);
         button.setAttribute("aria-selected", active ? "true" : "false");
       });
@@ -2688,7 +2763,8 @@
     }
 
     function getRoutineDefinition(preset = el.preset.value) {
-      return routineCatalog.presets[preset] || routineCatalog.presets.strength;
+      const fallbackPreset = Object.keys(routineCatalog.presets)[0];
+      return routineCatalog.presets[preset] || routineCatalog.presets[fallbackPreset] || routineCatalog.presets.strength;
     }
 
     function getRestSeconds(definition, selectedRestSeconds) {
