@@ -2248,8 +2248,35 @@
       }
     }
 
+    async function loadCloudRoutineCatalog() {
+      if (!state.cloudConfig.apiBase || !state.cloudConfig.token) {
+        return false;
+      }
+      state.routineLoading = true;
+      state.routineError = "";
+      renderCloudConfig("正在读取云端训练方案...");
+      try {
+        const definitions = await fetchRoutineTemplateDefinitions();
+        if (!definitions.length) throw new Error("云端没有可执行的训练方案。");
+        replaceRoutineCatalogWithCloud(definitions);
+        if (state.launch.routineId && externalRoutineMap[state.launch.routineId]) {
+          state.launch.preset = externalRoutineMap[state.launch.routineId];
+        }
+        renderCloudConfig(`已从云端载入 ${definitions.length} 个训练方案。`);
+        return true;
+      } catch (error) {
+        renderCloudConfig(`云端训练方案读取失败，继续使用内置方案：${error.message || "未知错误"}`, true);
+        return false;
+      } finally {
+        state.routineLoading = false;
+      }
+    }
+
     async function loadLaunchRoutineIfNeeded() {
       const routineId = state.launch.routineId;
+      if (routineId && !state.launch.preset && externalRoutineMap[routineId]) {
+        state.launch.preset = externalRoutineMap[routineId];
+      }
       if (!routineId || state.launch.preset || externalRoutineMap[routineId]) return;
       state.routineLoading = true;
       state.routineError = "";
@@ -2295,17 +2322,61 @@
       });
     }
 
+    async function refreshCloudRoutinesAfterConfig() {
+      await loadCloudRoutineCatalog();
+      maybeRetryLaunchRoutineLoad();
+      applyLaunchParams();
+      rebuild(true);
+    }
+
     async function fetchRoutineTemplateDefinition(routineId) {
+      const definitions = await fetchRoutineTemplateDefinitions();
+      const definition = definitions.find(item => item.routineId === routineId);
+      if (!definition) throw new Error(`云端没有找到流程：${routineId}`);
+      return definition;
+    }
+
+    async function fetchRoutineTemplateDefinitions() {
       if (!state.cloudConfig.apiBase || !state.cloudConfig.token) {
-        throw new Error(`计时器没有云数据库配置，无法读取流程：${routineId}`);
+        throw new Error("计时器没有云数据库配置，无法读取流程。");
       }
       const result = await cloudRequest("/records/query", {
         body: { entities: ["routine_templates"] }
       });
       const records = Array.isArray(result.records) ? result.records : [];
-      const envelope = records.find(record => record.id === routineId || record.data?.id === routineId);
-      if (!envelope) throw new Error(`云端没有找到流程：${routineId}`);
-      return routineTemplateToDefinition(envelope.data || {});
+      return records
+        .filter(record => !record.deletedAt)
+        .map(record => {
+          try {
+            return routineTemplateToDefinition(record.data || {});
+          } catch (error) {
+            return null;
+          }
+        })
+        .filter(Boolean)
+        .sort((left, right) => {
+          const sceneOrder = ["home", "walk", "recovery", "travel"];
+          const leftSceneIndex = sceneOrder.includes(left.scene) ? sceneOrder.indexOf(left.scene) : sceneOrder.length;
+          const rightSceneIndex = sceneOrder.includes(right.scene) ? sceneOrder.indexOf(right.scene) : sceneOrder.length;
+          return leftSceneIndex - rightSceneIndex
+            || String(left.displayName || "").localeCompare(String(right.displayName || ""), "zh-Hans-CN");
+        });
+    }
+
+    function replaceRoutineCatalogWithCloud(definitions) {
+      Object.keys(routineCatalog.presets).forEach(preset => {
+        if (preset.startsWith(DYNAMIC_ROUTINE_PRESET_PREFIX) || preset.startsWith("missing:")) {
+          delete routineCatalog.presets[preset];
+        }
+      });
+      Object.keys(planGroups).forEach(scene => { planGroups[scene] = []; });
+      Object.keys(planSceneByPreset).forEach(preset => { delete planSceneByPreset[preset]; });
+      Object.keys(externalRoutineMap).forEach(routineId => { delete externalRoutineMap[routineId]; });
+      Object.entries(routineCatalog.presets).forEach(([preset, routine]) => {
+        if (routine?.routineId) externalRoutineMap[routine.routineId] = preset;
+      });
+      definitions.forEach(registerDynamicRoutine);
+      routineCatalog.catalogVersion = `cloud-${new Date().toISOString()}`;
     }
 
     function registerDynamicRoutine(definition) {
@@ -2537,7 +2608,9 @@
     }
 
     function populatePreset(scene, preferredValue) {
-      const plans = planGroups[scene] || planGroups.home;
+      const actualScene = getAvailableScene(scene);
+      const plans = planGroups[actualScene] || [];
+      if (!plans.length) return;
       const nextValue = plans.some(plan => plan.value === preferredValue) ? preferredValue : plans[0].value;
       el.preset.replaceChildren(...plans.map(plan => {
         const option = document.createElement("option");
@@ -2546,8 +2619,13 @@
         return option;
       }));
       el.preset.value = nextValue;
-      state.scene = scene;
+      state.scene = actualScene;
       updateSceneButtons();
+    }
+
+    function getAvailableScene(scene) {
+      if ((planGroups[scene] || []).length) return scene;
+      return Object.keys(planGroups).find(key => (planGroups[key] || []).length) || scene || "home";
     }
 
     function getRoutineDefinition(preset = el.preset.value) {
@@ -3261,13 +3339,13 @@
       if (state.running && el.wake.checked) requestWakeLock();
       if (!el.wake.checked) releaseWakeLock();
     });
-    el.cloudSave.addEventListener("click", () => {
+    el.cloudSave.addEventListener("click", async () => {
       saveCloudConfig({
         apiBase: el.cloudApiBase.value,
         token: el.cloudToken.value
       });
       renderCloudConfig("云数据库配置已保存。");
-      maybeRetryLaunchRoutineLoad();
+      await refreshCloudRoutinesAfterConfig();
       retryPendingCloudSessions();
     });
     el.cloudTest.addEventListener("click", testCloudConnection);
@@ -3352,7 +3430,9 @@
         apiBase: apiBase || state.cloudConfig.apiBase,
         token: token || state.cloudConfig.token
       });
-      maybeRetryLaunchRoutineLoad();
+      refreshCloudRoutinesAfterConfig().catch(error => {
+        renderCloudConfig(error.message || "云端训练方案刷新失败", true);
+      });
     }
 
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
@@ -3361,6 +3441,7 @@
       if (state.launch.cloudApiBase) {
         saveCloudConfig({ apiBase: state.launch.cloudApiBase, token: state.cloudConfig.token });
       }
+      await loadCloudRoutineCatalog();
       await loadLaunchRoutineIfNeeded();
       applyLaunchParams();
       updateWakeLabel();
