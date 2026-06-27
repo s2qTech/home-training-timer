@@ -2357,7 +2357,12 @@
         .filter(record => !record.deletedAt)
         .map(record => {
           try {
-            return routineTemplateToDefinition(record.data || {});
+            const data = record.data || {};
+            return routineTemplateToDefinition({
+              ...data,
+              createdAt: data.createdAt || record.createdAt,
+              updatedAt: data.updatedAt || record.updatedAt
+            });
           } catch (error) {
             return null;
           }
@@ -2370,20 +2375,27 @@
           return leftSceneIndex - rightSceneIndex
             || Number(right.isDefault || false) - Number(left.isDefault || false)
             || (Number(left.sortOrder) || 0) - (Number(right.sortOrder) || 0)
-            || String(left.displayName || "").localeCompare(String(right.displayName || ""), "zh-Hans-CN");
+            || String(left.displayName || "").localeCompare(String(right.displayName || ""), "zh-Hans-CN")
+            || (Date.parse(right.updatedAt || "") || 0) - (Date.parse(left.updatedAt || "") || 0);
         });
     }
 
     function applyRoutineCatalogDefinitions(definitions, source) {
       resetRoutineCatalog(source);
       const launchRoutineId = state.launch.routineId || "";
-      const stats = { total: 0, visible: 0 };
+      const menuKeys = new Set();
+      const stats = { total: 0, visible: 0, hiddenDuplicates: 0 };
       definitions.forEach(definition => {
         const visible = Boolean(definition.timerVisible || definition.routineId === launchRoutineId);
         if (!visible) return;
-        registerDynamicRoutine(definition, { addToMenu: true });
+        const requested = definition.routineId === launchRoutineId;
+        const menuKey = getRoutineMenuKey(definition);
+        const addToMenu = requested || !menuKeys.has(menuKey);
+        registerDynamicRoutine(definition, { addToMenu });
+        if (addToMenu) menuKeys.add(menuKey);
         stats.total += 1;
-        stats.visible += 1;
+        if (addToMenu) stats.visible += 1;
+        else stats.hiddenDuplicates += 1;
       });
       if (!stats.visible) throw new Error("云端没有可显示的计时器方案。");
       routineCatalog.catalogVersion = `${source}-${new Date().toISOString()}`;
@@ -2478,6 +2490,20 @@
         || String(preset || "").startsWith("missing:");
     }
 
+    function getRoutineMenuKey(definition) {
+      const scene = definition.scene || sceneFromTrainingType(definition.trainingType);
+      return [
+        scene,
+        normalizeMenuText(definition.displayName || "云端流程"),
+        normalizeMenuText(definition.displayVariant || ""),
+        Math.round(Number(definition.estimatedMinutes) || 0)
+      ].join("|");
+    }
+
+    function normalizeMenuText(value) {
+      return String(value || "").replace(/\s+/g, "").trim();
+    }
+
     function registerDynamicRoutine(definition, options = {}) {
       const preset = `${DYNAMIC_ROUTINE_PRESET_PREFIX}${definition.routineId}`;
       routineCatalog.presets[preset] = definition;
@@ -2542,6 +2568,8 @@
         timerVisible: isTimerVisibleTemplate(template),
         sortOrder: Number(template.sortOrder ?? template.sort_order ?? 0) || 0,
         isDefault: parseBooleanValue(template.isDefault ?? template.is_default) === true,
+        createdAt: template.createdAt || template.created_at || "",
+        updatedAt: template.updatedAt || template.updated_at || "",
         mode: "sequence",
         steps,
         defaultRestSeconds: Number(options.defaultRestSeconds || options.default_rest_seconds || template.defaultRestSeconds || 20) || 20,
