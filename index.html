@@ -2403,9 +2403,8 @@
       definitions.forEach(definition => {
         const visible = Boolean(definition.timerVisible || definition.routineId === launchRoutineId);
         if (!visible) return;
-        const requested = definition.routineId === launchRoutineId;
         const menuKey = getRoutineMenuKey(definition);
-        const addToMenu = requested || !menuKeys.has(menuKey);
+        const addToMenu = !menuKeys.has(menuKey);
         registerDynamicRoutine(definition, { addToMenu });
         if (addToMenu) menuKeys.add(menuKey);
         stats.total += 1;
@@ -2507,12 +2506,12 @@
 
     function getRoutineMenuKey(definition) {
       const scene = definition.scene || sceneFromTrainingType(definition.trainingType);
-      return [
-        scene,
-        normalizeMenuText(definition.displayName || "云端流程"),
-        normalizeMenuText(definition.displayVariant || ""),
-        Math.round(Number(definition.estimatedMinutes) || 0)
-      ].join("|");
+      return [scene, normalizeMenuText(getRoutineMenuLabel(definition))].join("|");
+    }
+
+    function getRoutineMenuLabel(definition, options = {}) {
+      const label = `${definition.displayName || "云端流程"}${definition.displayVariant ? ` · ${definition.displayVariant}` : ""}${definition.estimatedMinutes ? `：约${Math.round(definition.estimatedMinutes)}分` : ""}`;
+      return options.current ? `${label}（当前计划）` : label;
     }
 
     function normalizeMenuText(value) {
@@ -2530,7 +2529,7 @@
         if (!planGroups[scene].some(plan => plan.value === preset)) {
           planGroups[scene].push({
             value: preset,
-            label: `${definition.displayName || "云端流程"}${definition.displayVariant ? ` · ${definition.displayVariant}` : ""}${definition.estimatedMinutes ? `：约${Math.round(definition.estimatedMinutes)}分` : ""}`
+            label: getRoutineMenuLabel(definition)
           });
         }
         planSceneByPreset[preset] = scene;
@@ -2786,7 +2785,13 @@
 
     function populatePreset(scene, preferredValue) {
       const actualScene = getAvailableScene(scene);
-      const plans = planGroups[actualScene] || [];
+      const plans = [...(planGroups[actualScene] || [])];
+      if (preferredValue && routineCatalog.presets[preferredValue] && !plans.some(plan => plan.value === preferredValue)) {
+        plans.unshift({
+          value: preferredValue,
+          label: getRoutineMenuLabel(routineCatalog.presets[preferredValue], { current: true })
+        });
+      }
       if (!plans.length) return;
       const nextValue = plans.some(plan => plan.value === preferredValue) ? preferredValue : plans[0].value;
       el.preset.replaceChildren(...plans.map(plan => {
