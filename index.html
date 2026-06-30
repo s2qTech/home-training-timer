@@ -2655,10 +2655,36 @@
       return [key, Math.round(seconds), phase, dose, {
         name,
         dose,
+        sourceStepId: rawKey,
+        execution: normalizeStepExecution(step.execution),
         cues: normalizeStringList(step.cues),
         warnings: normalizeStringList(step.warnings),
         breath: step.breath || step.breathing || ""
       }];
+    }
+
+    function normalizeStepExecution(execution) {
+      if (!execution || typeof execution !== "object" || Array.isArray(execution)) return null;
+      const mode = String(execution.mode || "simple").trim() || "simple";
+      const allowed = ["simple", "prepare_only", "alternating", "bilateral_hold", "bilateral_reps"];
+      const normalized = {
+        mode: allowed.includes(mode) ? mode : "simple",
+        prepareSeconds: normalizeExecutionSeconds(execution.prepareSeconds ?? execution.prepare_seconds, 0, 0),
+        sideSeconds: normalizeExecutionSeconds(execution.sideSeconds ?? execution.side_seconds, null, 1),
+        switchSeconds: normalizeExecutionSeconds(execution.switchSeconds ?? execution.switch_seconds, 0, 0),
+        sides: Array.isArray(execution.sides)
+          ? execution.sides.map(item => String(item || "").trim()).filter(Boolean)
+          : []
+      };
+      if (!normalized.sides.length) normalized.sides = ["左侧", "右侧"];
+      return normalized;
+    }
+
+    function normalizeExecutionSeconds(value, fallback, minValue) {
+      if (value === undefined || value === null || value === "") return fallback;
+      const number = Number(value);
+      if (!Number.isFinite(number)) return fallback;
+      return Math.max(minValue, Math.round(number));
     }
 
     function resolveActionKey(value) {
@@ -2838,10 +2864,105 @@
 
     function pushItems(target, items, round) {
       copyItems(items).forEach(item => {
-        const step = toStep(item);
-        if (round) step.round = round;
-        target.push(step);
+        expandCatalogItem(item).forEach(step => {
+          if (round) step.round = round;
+          target.push(step);
+        });
       });
+    }
+
+    function expandCatalogItem(item) {
+      const info = item[4] || {};
+      const execution = normalizeStepExecution(info.execution);
+      if (!execution || execution.mode === "simple") return [toStep(item)];
+
+      if (execution.mode === "prepare_only" || execution.mode === "alternating") {
+        const steps = [];
+        if (execution.prepareSeconds > 0) steps.push(makeExecutionStep(item, {
+          keySuffix: "prepare",
+          phase: "准备",
+          name: baseStepName(item),
+          seconds: execution.prepareSeconds,
+          dose: "摆好姿势，准备开始。",
+          executionPart: "prepare",
+          speechText: `准备，${baseStepName(item)}`
+        }));
+        steps.push(toStep(item));
+        return steps;
+      }
+
+      if (execution.mode === "bilateral_hold" || execution.mode === "bilateral_reps") {
+        const left = execution.sides[0] || "左侧";
+        const right = execution.sides[1] || "右侧";
+        const sideSeconds = execution.sideSeconds || Math.max(1, Math.round(Number(item[1] || 0) / 2));
+        const steps = [];
+        if (execution.prepareSeconds > 0) steps.push(makeExecutionStep(item, {
+          keySuffix: "prepare",
+          phase: "准备",
+          name: baseStepName(item),
+          seconds: execution.prepareSeconds,
+          dose: "摆好姿势，准备开始。",
+          executionPart: "prepare",
+          speechText: `准备，${baseStepName(item)}`
+        }));
+        steps.push(makeExecutionStep(item, {
+          keySuffix: "left",
+          phase: left,
+          name: baseStepName(item),
+          seconds: sideSeconds,
+          dose: item[3] || `保持 ${formatDuration(sideSeconds)}`,
+          executionPart: "side",
+          side: left,
+          speechText: `${left}，${baseStepName(item)}`
+        }));
+        if (execution.switchSeconds > 0) steps.push(makeExecutionStep(item, {
+          keySuffix: "switch",
+          phase: "换侧",
+          name: `换${right}`,
+          seconds: execution.switchSeconds,
+          dose: `换到${right}，准备下一侧。`,
+          executionPart: "switch",
+          side: right,
+          speechText: `换${right}`
+        }));
+        steps.push(makeExecutionStep(item, {
+          keySuffix: "right",
+          phase: right,
+          name: baseStepName(item),
+          seconds: sideSeconds,
+          dose: item[3] || `保持 ${formatDuration(sideSeconds)}`,
+          executionPart: "side",
+          side: right,
+          speechText: `${right}，${baseStepName(item)}`
+        }));
+        return steps;
+      }
+
+      return [toStep(item)];
+    }
+
+    function makeExecutionStep(item, overrides) {
+      return toStep(item, {
+        key: `${item[0]}:${overrides.keySuffix}`,
+        seconds: overrides.seconds,
+        phase: overrides.phase,
+        name: overrides.name,
+        dose: overrides.dose,
+        executionPart: overrides.executionPart,
+        side: overrides.side || null,
+        sourceStepId: getSourceStepId(item),
+        speechText: overrides.speechText
+      });
+    }
+
+    function baseStepName(item) {
+      const info = item[4] || actionInfo[item[0]] || {};
+      return info.name || item[3] || item[0];
+    }
+
+    function getSourceStepId(item) {
+      const info = item[4] || {};
+      return info.sourceStepId || item[0];
     }
 
     function resolveRoutineRound(definition, options) {
@@ -2980,7 +3101,7 @@
       return steps;
     }
 
-    function toStep(item) {
+    function toStep(item, overrides = {}) {
       const info = item[4] || actionInfo[item[0]] || {
         name: item[3] || item[0],
         dose: item[3] || "",
@@ -2988,17 +3109,23 @@
         warnings: ["这是云端流程中的新动作，请按教练说明控制强度。"],
         breath: "呼吸：保持自然呼吸。"
       };
-      const actualDose = item[3] || buildDoseLabel(item[0], item[1], info.dose);
+      const key = overrides.key || item[0];
+      const seconds = Math.max(1, Math.round(Number(overrides.seconds ?? item[1]) || 1));
+      const actualDose = overrides.dose || item[3] || buildDoseLabel(item[0], seconds, info.dose);
       return {
-        key: item[0],
-        seconds: item[1],
-        total: item[1],
-        phase: item[2],
-        name: info.name,
+        key,
+        seconds,
+        total: seconds,
+        phase: overrides.phase || item[2],
+        name: overrides.name || info.name,
         dose: actualDose,
         cues: Array.isArray(info.cues) && info.cues.length ? info.cues : ["按计时完成，保持动作质量。"],
         warnings: Array.isArray(info.warnings) && info.warnings.length ? info.warnings : ["出现疼痛、麻、刺或头晕时停止。"],
-        breath: info.breath || "呼吸：保持自然呼吸。"
+        breath: info.breath || "呼吸：保持自然呼吸。",
+        sourceStepId: overrides.sourceStepId || getSourceStepId(item),
+        executionPart: overrides.executionPart || null,
+        side: overrides.side || null,
+        speechText: overrides.speechText || ""
       };
     }
 
@@ -3138,7 +3265,7 @@
 
     function updateSummary() {
       const seconds = state.steps.reduce((sum, step) => sum + step.seconds, 0);
-      const actions = state.steps.filter(step => !["rest", "finish"].includes(step.key)).length;
+      const actions = state.steps.filter(step => !["rest", "finish"].includes(step.key) && !["prepare", "switch"].includes(step.executionPart)).length;
       el.totalTime.textContent = `${Math.round(seconds / 60)} 分`;
       el.workCount.textContent = `${actions} 项`;
       if (state.routineError) {
@@ -3264,9 +3391,12 @@
         .map((step, index) => ({
           order: index + 1,
           stepId: step.key,
+          sourceStepId: step.sourceStepId || step.key,
           name: step.name,
           phase: step.phase,
           round: step.round || null,
+          executionPart: step.executionPart || null,
+          side: step.side || null,
           plannedSeconds: step.seconds,
           dose: step.dose
         }));
@@ -3324,9 +3454,12 @@
           return {
             order: index + 1,
             stepId: step.key,
+            sourceStepId: step.sourceStepId || step.key,
             name: step.name,
             phase: step.phase,
             round: step.round || null,
+            executionPart: step.executionPart || null,
+            side: step.side || null,
             plannedSeconds: step.seconds,
             status: completed ? "completed" : "pending"
           };
@@ -3505,7 +3638,9 @@
         ? next && next.key !== "finish"
           ? `休息，下一项 ${next.name}，${next.dose}。要点，${next.cues[0]}`
           : "休息，下一项完成"
-        : `${step.phase}，${step.name}，${step.dose}`;
+        : step.speechText
+          ? `${step.speechText}，${step.dose}`
+          : `${step.phase}，${step.name}，${step.dose}`;
       try {
         window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(text);
