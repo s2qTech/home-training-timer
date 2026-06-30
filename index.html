@@ -701,10 +701,31 @@
       font-weight: 900;
     }
 
-    .queue-item span:nth-child(2) {
+    .queue-body {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+    }
+
+    .queue-main {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .queue-detail {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .queue-item.active .queue-detail {
+      color: #587064;
     }
 
     .queue-time {
@@ -3125,6 +3146,7 @@
         sourceStepId: overrides.sourceStepId || getSourceStepId(item),
         executionPart: overrides.executionPart || null,
         side: overrides.side || null,
+        actionPhase: overrides.actionPhase || item[2],
         speechText: overrides.speechText || ""
       };
     }
@@ -3224,7 +3246,8 @@
       el.status.textContent = state.routineError ? "流程读取失败" : state.routineLoading ? "读取流程中" : state.running ? "进行中" : state.started ? "已暂停" : "未开始";
       el.phase.textContent = step.phase + (step.round ? ` · 第 ${step.round} 轮` : "");
       el.phase.className = "phase " + (step.key === "rest" ? "rest" : step.key === "finish" ? "stop" : (step.phase === "力量" || step.phase === "密度") ? "work" : "");
-      el.count.textContent = `${Math.min(state.index + 1, state.steps.length)} / ${state.steps.length}`;
+      const actionProgress = getActionProgress();
+      el.count.textContent = `${actionProgress.current} / ${actionProgress.total}`;
       el.time.textContent = formatTime(state.remaining);
       if (previewNext) {
         el.stepName.textContent = `休息：准备 ${next.name}`;
@@ -3250,10 +3273,18 @@
     }
 
     function renderQueue() {
-      el.queue.innerHTML = state.steps.map((step, i) => {
-        const cls = i === state.index ? "queue-item active" : i < state.index ? "queue-item done" : "queue-item";
-        const round = step.round ? ` · ${step.round}` : "";
-        return `<div class="${cls}"><span class="queue-num">${i + 1}</span><span>${step.phase}${round} · ${step.name}</span><span class="queue-time">${formatTime(step.seconds)}</span></div>`;
+      const groups = buildStepGroups();
+      el.queue.innerHTML = groups.map(group => {
+        const cls = group.startIndex <= state.index && state.index <= group.endIndex
+          ? "queue-item active"
+          : group.endIndex < state.index
+            ? "queue-item done"
+            : "queue-item";
+        const round = group.round ? ` · ${group.round}` : "";
+        const label = group.type === "rest" ? "休" : group.actionNumber;
+        const title = group.type === "rest" ? "休息" : `${group.phase}${round} · ${group.name}`;
+        const detail = group.hasExecution ? `<span class="queue-detail">${escapeHtml(formatExecutionGroupDetail(group))}</span>` : "";
+        return `<div class="${cls}"><span class="queue-num">${label}</span><span class="queue-body"><span class="queue-main">${escapeHtml(title)}</span>${detail}</span><span class="queue-time">${formatTime(group.seconds)}</span></div>`;
       }).join("");
       const active = el.queue.querySelector(".active");
       if (active) {
@@ -3263,9 +3294,79 @@
       }
     }
 
+    function buildStepGroups() {
+      const groups = [];
+      let current = null;
+      let actionNumber = 0;
+      state.steps.forEach((step, index) => {
+        if (step.key === "finish") return;
+        const isRest = step.key === "rest";
+        const joinKey = isRest ? `rest:${index}` : `${step.round || ""}:${step.sourceStepId || step.key}`;
+        const canJoin = current
+          && current.type === "action"
+          && !isRest
+          && current.joinKey === joinKey
+          && (current.hasExecution || step.executionPart);
+        if (!canJoin) {
+          if (!isRest) actionNumber += 1;
+          current = {
+            type: isRest ? "rest" : "action",
+            actionNumber: isRest ? null : actionNumber,
+            joinKey,
+            startIndex: index,
+            endIndex: index,
+            seconds: 0,
+            steps: [],
+            hasExecution: Boolean(step.executionPart),
+            phase: step.actionPhase || step.phase,
+            name: step.name,
+            round: step.round || null
+          };
+          groups.push(current);
+        }
+        current.steps.push(step);
+        current.endIndex = index;
+        current.seconds += step.seconds;
+        current.hasExecution = current.hasExecution || Boolean(step.executionPart);
+        if (!["prepare", "switch"].includes(step.executionPart)) {
+          current.phase = step.actionPhase || step.phase;
+          current.name = step.name;
+        }
+      });
+      return groups;
+    }
+
+    function getActionProgress() {
+      const groups = buildStepGroups();
+      const actions = groups.filter(group => group.type === "action");
+      const total = Math.max(1, actions.length);
+      const active = groups.find(group => group.startIndex <= state.index && state.index <= group.endIndex);
+      if (active?.type === "action") return { current: active.actionNumber, total };
+      const completed = actions.filter(group => group.endIndex < state.index).length;
+      return { current: Math.min(total, Math.max(1, completed || 1)), total };
+    }
+
+    function formatExecutionGroupDetail(group) {
+      return group.steps.map(step => {
+        if (step.executionPart === "prepare") return `准备 ${formatTime(step.seconds)}`;
+        if (step.executionPart === "switch") return `${step.name} ${formatTime(step.seconds)}`;
+        if (step.executionPart === "side") return `${step.phase} ${formatTime(step.seconds)}`;
+        return `动作 ${formatTime(step.seconds)}`;
+      }).join(" · ");
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
     function updateSummary() {
       const seconds = state.steps.reduce((sum, step) => sum + step.seconds, 0);
-      const actions = state.steps.filter(step => !["rest", "finish"].includes(step.key) && !["prepare", "switch"].includes(step.executionPart)).length;
+      const actions = buildStepGroups().filter(group => group.type === "action").length;
       el.totalTime.textContent = `${Math.round(seconds / 60)} 分`;
       el.workCount.textContent = `${actions} 项`;
       if (state.routineError) {
