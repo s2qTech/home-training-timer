@@ -2527,7 +2527,9 @@
 
     function getRoutineMenuKey(definition) {
       const scene = definition.scene || sceneFromTrainingType(definition.trainingType);
-      return [scene, normalizeMenuText(getRoutineMenuLabel(definition))].join("|");
+      const title = definition.displayName || "云端流程";
+      const variant = definition.displayVariant || "";
+      return [scene, normalizeMenuText(title), normalizeMenuText(variant)].join("|");
     }
 
     function getRoutineMenuLabel(definition, options = {}) {
