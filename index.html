@@ -669,12 +669,34 @@
       grid-template-columns: 26px minmax(0, 1fr) auto;
       gap: 8px;
       align-items: center;
+      width: 100%;
       padding: 9px 8px;
       border-radius: 10px;
       color: var(--muted);
       font-size: 13px;
       border: 1px solid transparent;
+      background: transparent;
+      appearance: none;
+      font-family: inherit;
+      text-align: left;
       transition: background .16s ease, border-color .16s ease, color .16s ease;
+    }
+
+    .queue-item.can-preview {
+      cursor: pointer;
+    }
+
+    .queue-item.can-preview:not(.active):hover,
+    .queue-item.can-preview:not(.active):focus-visible {
+      background: #f7faf8;
+      border-color: #cbded2;
+      color: var(--ink);
+      outline: none;
+    }
+
+    .queue-item:disabled {
+      cursor: default;
+      opacity: 1;
     }
 
     .queue-item.active {
@@ -2149,6 +2171,7 @@
     const state = {
       steps: [],
       index: 0,
+      previewIndex: null,
       remaining: 0,
       running: false,
       timer: null,
@@ -3272,6 +3295,7 @@
     function rebuild(resetIndex = true) {
       updateConditionControls();
       state.steps = makeSteps();
+      state.previewIndex = null;
       if (resetIndex) {
         state.index = 0;
         state.remaining = state.steps[0].seconds;
@@ -3285,16 +3309,34 @@
       render();
     }
 
+    function canPreviewQueue() {
+      return !state.running;
+    }
+
+    function getDisplayStepIndex() {
+      if (canPreviewQueue() && Number.isInteger(state.previewIndex) && state.steps[state.previewIndex]) {
+        return state.previewIndex;
+      }
+      return state.index;
+    }
+
+    function clearStepPreview() {
+      state.previewIndex = null;
+    }
+
     function render() {
-      const step = state.steps[state.index] || toStep(["finish", 1, "完成"]);
-      const next = state.steps[state.index + 1];
+      const displayIndex = getDisplayStepIndex();
+      const isPreviewing = canPreviewQueue() && displayIndex !== state.index;
+      const step = state.steps[displayIndex] || toStep(["finish", 1, "完成"]);
+      const next = state.steps[displayIndex + 1];
+      const displayRemaining = isPreviewing ? step.seconds : state.remaining;
       const previewNext = step.key === "rest" && next && next.key !== "finish";
       el.status.textContent = state.routineError ? "流程读取失败" : state.routineLoading ? "读取流程中" : state.running ? "进行中" : state.started ? "已暂停" : "未开始";
       el.phase.textContent = step.phase + (step.round ? ` · 第 ${step.round} 轮` : "");
       el.phase.className = "phase " + (step.key === "rest" ? "rest" : step.key === "finish" ? "stop" : (step.phase === "力量" || step.phase === "密度") ? "work" : "");
-      const actionProgress = getActionProgress();
+      const actionProgress = getActionProgress(displayIndex);
       el.count.textContent = `${actionProgress.current} / ${actionProgress.total}`;
-      el.time.textContent = formatTime(state.remaining);
+      el.time.textContent = formatTime(displayRemaining);
       if (previewNext) {
         el.stepName.textContent = `休息：准备 ${next.name}`;
         el.stepDose.textContent = `下一项 ${next.phase} · ${next.dose}`;
@@ -3310,7 +3352,7 @@
         el.breath.textContent = step.breath;
         el.next.textContent = next ? `下一项：${next.phase} · ${next.name}` : "下一项：暂无";
       }
-      const done = step.total - state.remaining;
+      const done = isPreviewing ? 0 : step.total - state.remaining;
       const progress = step.total ? Math.min(1, Math.max(0, done / step.total)) : 1;
       el.ring.style.setProperty("--p", `${progress * 360}deg`);
       renderQueue();
@@ -3319,18 +3361,21 @@
     }
 
     function renderQueue() {
+      const displayIndex = getDisplayStepIndex();
+      const previewable = canPreviewQueue();
       const groups = buildStepGroups();
       el.queue.innerHTML = groups.map(group => {
-        const cls = group.startIndex <= state.index && state.index <= group.endIndex
+        const cls = group.startIndex <= displayIndex && displayIndex <= group.endIndex
           ? "queue-item active"
-          : group.endIndex < state.index
+          : state.started && group.endIndex < state.index
             ? "queue-item done"
             : "queue-item";
+        const previewIndex = Number.isInteger(group.previewIndex) ? group.previewIndex : group.startIndex;
         const round = group.round ? ` · ${group.round}` : "";
         const label = group.type === "rest" ? "休" : group.actionNumber;
         const title = group.type === "rest" ? "休息" : `${group.phase}${round} · ${group.name}`;
         const detail = group.hasExecution ? `<span class="queue-detail">${escapeHtml(formatExecutionGroupDetail(group))}</span>` : "";
-        return `<div class="${cls}"><span class="queue-num">${label}</span><span class="queue-body"><span class="queue-main">${escapeHtml(title)}</span>${detail}</span><span class="queue-time">${formatTime(group.seconds)}</span></div>`;
+        return `<button type="button" class="${cls}${previewable ? " can-preview" : ""}" data-preview-index="${previewIndex}" ${previewable ? "" : "disabled"} title="${previewable ? "查看动作要点" : ""}"><span class="queue-num">${label}</span><span class="queue-body"><span class="queue-main">${escapeHtml(title)}</span>${detail}</span><span class="queue-time">${formatTime(group.seconds)}</span></button>`;
       }).join("");
       const active = el.queue.querySelector(".active");
       if (active) {
@@ -3363,6 +3408,7 @@
             endIndex: index,
             seconds: 0,
             steps: [],
+            previewIndex: null,
             hasExecution: Boolean(step.executionPart),
             phase: step.actionPhase || step.phase,
             name: step.name,
@@ -3375,20 +3421,24 @@
         current.seconds += step.seconds;
         current.hasExecution = current.hasExecution || Boolean(step.executionPart);
         if (!["prepare", "switch"].includes(step.executionPart)) {
+          if (current.previewIndex === null) current.previewIndex = index;
           current.phase = step.actionPhase || step.phase;
           current.name = step.name;
         }
       });
+      groups.forEach(group => {
+        if (group.previewIndex === null) group.previewIndex = group.startIndex;
+      });
       return groups;
     }
 
-    function getActionProgress() {
+    function getActionProgress(index = state.index) {
       const groups = buildStepGroups();
       const actions = groups.filter(group => group.type === "action");
       const total = Math.max(1, actions.length);
-      const active = groups.find(group => group.startIndex <= state.index && state.index <= group.endIndex);
+      const active = groups.find(group => group.startIndex <= index && index <= group.endIndex);
       if (active?.type === "action") return { current: active.actionNumber, total };
-      const completed = actions.filter(group => group.endIndex < state.index).length;
+      const completed = actions.filter(group => group.endIndex < index).length;
       return { current: Math.min(total, Math.max(1, completed || 1)), total };
     }
 
@@ -3685,6 +3735,7 @@
     function start() {
       if (state.routineError || state.routineLoading) return;
       if (state.running) return;
+      clearStepPreview();
       state.running = true;
       state.started = true;
       state.lastTick = Date.now();
@@ -3723,6 +3774,7 @@
     }
 
     function nextStep(auto = false) {
+      clearStepPreview();
       if (state.index >= state.steps.length - 1) {
         pause();
         state.remaining = 0;
@@ -3745,12 +3797,14 @@
     }
 
     function prevStep() {
+      clearStepPreview();
       state.index = Math.max(0, state.index - 1);
       state.remaining = state.steps[state.index].seconds;
       render();
     }
 
     function resetAll() {
+      clearStepPreview();
       state.index = 0;
       state.remaining = state.steps[0].seconds;
       state.started = false;
@@ -3808,6 +3862,14 @@
     el.nextBtn.addEventListener("click", () => nextStep(false));
     el.prevBtn.addEventListener("click", prevStep);
     el.resetBtn.addEventListener("click", resetAll);
+    el.queue.addEventListener("click", event => {
+      const item = event.target.closest("[data-preview-index]");
+      if (!item || !canPreviewQueue()) return;
+      const index = Number(item.dataset.previewIndex);
+      if (!Number.isInteger(index) || !state.steps[index]) return;
+      state.previewIndex = index;
+      render();
+    });
     el.sceneButtons.forEach(button => {
       button.addEventListener("click", () => {
         if (button.dataset.scene === state.scene) return;
