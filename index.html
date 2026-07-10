@@ -1985,6 +1985,8 @@
           displayName: "力量训练",
           scene: "home",
           trainingType: "strength",
+          calendarVisible: true,
+          countsTowardTraining: true,
           mode: "rounds",
           warmup: baseWarmup,
           round: roundStandard,
@@ -2003,6 +2005,8 @@
           displayName: "力量短版",
           scene: "home",
           trainingType: "strength",
+          calendarVisible: true,
+          countsTowardTraining: true,
           mode: "rounds",
           warmup: strengthShortWarmup,
           round: roundLow,
@@ -2016,6 +2020,8 @@
           displayName: "室内有氧",
           scene: "home",
           trainingType: "indoor_cardio",
+          calendarVisible: true,
+          countsTowardTraining: true,
           mode: "sequence",
           steps: indoorCardio,
           calfCareSteps: indoorCardioCare
@@ -2026,6 +2032,8 @@
           displayName: "走前热身",
           scene: "walk",
           trainingType: "warmup",
+          calendarVisible: false,
+          countsTowardTraining: false,
           mode: "sequence",
           steps: walkWarmup
         },
@@ -2036,6 +2044,8 @@
           displayVariant: "简版",
           scene: "walk",
           trainingType: "stretch",
+          calendarVisible: false,
+          countsTowardTraining: false,
           mode: "sequence",
           steps: walkStretchQuick
         },
@@ -2046,6 +2056,8 @@
           displayVariant: "完整版",
           scene: "walk",
           trainingType: "stretch",
+          calendarVisible: false,
+          countsTowardTraining: false,
           mode: "sequence",
           steps: walkStretchFull
         },
@@ -2055,6 +2067,8 @@
           displayName: "恢复拉伸",
           scene: "recovery",
           trainingType: "recovery",
+          calendarVisible: true,
+          countsTowardTraining: true,
           mode: "sequence",
           steps: recoveryStretch
         },
@@ -2064,6 +2078,8 @@
           displayName: "外出训练",
           scene: "travel",
           trainingType: "travel_strength",
+          calendarVisible: true,
+          countsTowardTraining: true,
           mode: "rounds",
           warmup: travelWarmup,
           roundByBand: {
@@ -2080,6 +2096,8 @@
           displayName: "座位活动",
           scene: "travel",
           trainingType: "seat_recovery",
+          calendarVisible: false,
+          countsTowardTraining: false,
           mode: "sequence",
           steps: seatRoutine
         }
@@ -2603,6 +2621,8 @@
         trainingType,
         estimatedMinutes: Number(template.estimatedMinutes || template.estimated_minutes || 0) || null,
         timerVisible: isTimerVisibleTemplate(template),
+        calendarVisible: isCalendarVisibleTemplate(template),
+        countsTowardTraining: countsTowardTrainingTemplate(template),
         sortOrder: Number(template.sortOrder ?? template.sort_order ?? 0) || 0,
         isDefault: parseBooleanValue(template.isDefault ?? template.is_default) === true,
         createdAt: template.createdAt || template.created_at || "",
@@ -2648,6 +2668,30 @@
       if (explicit !== null) return explicit;
       const owner = String(template.owner || template.source || template.app || "").toLowerCase();
       return owner === "timer" || owner === "home-training-timer";
+    }
+
+    function isCalendarVisibleTemplate(template) {
+      const explicit = parseBooleanValue(
+        template.calendarVisible
+        ?? template.calendar_visible
+        ?? template.includeInCalendar
+        ?? template.include_in_calendar
+        ?? template.showInCalendar
+        ?? template.show_in_calendar
+      );
+      return explicit ?? true;
+    }
+
+    function countsTowardTrainingTemplate(template) {
+      const explicit = parseBooleanValue(
+        template.countsTowardTraining
+        ?? template.counts_toward_training
+        ?? template.trainingLogEligible
+        ?? template.training_log_eligible
+        ?? template.countsAsTraining
+        ?? template.counts_as_training
+      );
+      return explicit ?? isCalendarVisibleTemplate(template);
     }
 
     function parseBooleanValue(value) {
@@ -3477,7 +3521,9 @@
         routineVariant: definition.displayVariant || "",
         routineCatalogVersion: routineCatalog.catalogVersion,
         trainingType: definition.trainingType,
-        scene: definition.scene
+        scene: definition.scene,
+        calendarVisible: definition.calendarVisible !== false,
+        countsTowardTraining: definition.countsTowardTraining !== false
       };
     }
 
@@ -3526,6 +3572,8 @@
         routineCatalogVersion: context.routineCatalogVersion,
         trainingType: context.trainingType,
         scene: context.scene,
+        calendarVisible: context.calendarVisible,
+        countsTowardTraining: context.countsTowardTraining,
         startedAt,
         endedAt: null,
         createdAt: startedAt,
