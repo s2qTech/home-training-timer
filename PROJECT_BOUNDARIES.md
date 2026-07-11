@@ -35,10 +35,10 @@ Timer changes that add or change shared fields must update the canonical contrac
 
 ## Mandatory Rules
 
-- Read `routine_templates` from the shared database and cache the last valid set locally.
+- Read `routine_templates` from the shared database and cache the last valid set locally. A routine is shown in the standalone selector by default; only explicit `timerVisible: false` or `needsTimer: false` hides it.
 - Built-in routines are fallback/debug only and must show an explicit warning when used.
 - Do not silently fall back when a requested cloud `routineId` is unavailable.
-- Preserve unknown compatible fields when caching and serializing routine templates.
+- Preserve unknown compatible fields when caching and serializing routine templates. In particular, `description`, `keyPoints`, `cues`, `warnings`, `safetyNotes`, `breath`, and `execution` must survive normalization so the pre-start guidance and runtime cues remain useful.
 - Write only `timer_sessions` to the shared database.
 - Never write `training_logs` or modify plans.
 - `actualSeconds` represents active execution time and excludes pauses.

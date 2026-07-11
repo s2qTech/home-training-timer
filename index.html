@@ -2677,7 +2677,14 @@
         displayVariant: cleanRoutineTitle(template.variant || template.routineVariant || template.routine_variant || ""),
         scene: template.scene || sceneFromTrainingType(trainingType),
         trainingType,
-        estimatedMinutes: Number(template.estimatedMinutes || template.estimated_minutes || 0) || null,
+        estimatedMinutes: Number(
+          template.estimatedMinutes
+          ?? template.estimated_minutes
+          ?? template.estimatedDurationMinutes
+          ?? template.estimated_duration_minutes
+          ?? template.durationMinutes
+          ?? 0
+        ) || null,
         timerVisible: isTimerVisibleTemplate(template),
         calendarVisible: isCalendarVisibleTemplate(template),
         countsTowardTraining: countsTowardTrainingTemplate(template),
@@ -2724,8 +2731,11 @@
         ?? template.is_timer_routine
       );
       if (explicit !== null) return explicit;
-      const owner = String(template.owner || template.source || template.app || "").toLowerCase();
-      return owner === "timer" || owner === "home-training-timer";
+      const needsTimer = parseBooleanValue(template.needsTimer ?? template.needs_timer);
+      if (needsTimer !== null) return needsTimer;
+      // routine_templates are executable by default. Older coach templates did not
+      // carry a timerVisible field, so only an explicit false hides a routine.
+      return true;
     }
 
     function isCalendarVisibleTemplate(template) {
@@ -2777,14 +2787,28 @@
       const phase = phaseLabel(step.phase || step.category || step.trainingType || step.training_type);
       const name = cleanRoutineTitle(step.name || step.title || actionInfo[key]?.name || rawKey);
       const dose = step.targetReps || step.target_reps || step.dose || step.label || buildDoseLabel(key, seconds, actionInfo[key]?.dose || "");
+      const description = cleanRoutineTitle(step.description || step.instructions || "");
+      const keyPoints = normalizeStringList(step.keyPoints ?? step.key_points ?? step.points);
+      const cues = uniqueTextList([
+        ...normalizeStringList(step.cues),
+        ...keyPoints,
+        ...(description ? [description] : [])
+      ]);
+      const warnings = uniqueTextList([
+        ...normalizeStringList(step.warnings),
+        ...normalizeStringList(step.safetyNotes ?? step.safety_notes ?? step.cautions ?? step.caution)
+      ]);
       return [key, Math.round(seconds), phase, dose, {
         name,
         dose,
         sourceStepId: rawKey,
         execution: normalizeStepExecution(step.execution),
-        cues: normalizeStringList(step.cues),
-        warnings: normalizeStringList(step.warnings),
-        breath: step.breath || step.breathing || ""
+        description,
+        keyPoints,
+        cues,
+        warnings,
+        breath: step.breath || step.breathing || step.breathCue || step.breath_cue || "",
+        rawStep: clonePlainData(step)
       }];
     }
 
@@ -2822,6 +2846,10 @@
       if (Array.isArray(value)) return value.map(item => String(item || "").trim()).filter(Boolean);
       const text = String(value || "").trim();
       return text ? [text] : [];
+    }
+
+    function uniqueTextList(values) {
+      return [...new Set((values || []).map(item => String(item || "").trim()).filter(Boolean))];
     }
 
     function normalizeTrainingType(value) {

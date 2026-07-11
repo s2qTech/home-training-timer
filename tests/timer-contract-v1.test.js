@@ -19,5 +19,10 @@ assert.match(page, /const SHENKE_CONTRACT_VERSION = "1\.0"/);
 assert.match(page, /contractVersion: SHENKE_CONTRACT_VERSION/);
 assert.match(page, /contractVersion: options\.body\.contractVersion \|\| SHENKE_CONTRACT_VERSION/);
 assert.match(page, /entities: \["routine_templates"\], limit: 200, cursor/);
+assert.match(page, /if \(needsTimer !== null\) return needsTimer;/);
+assert.match(page, /return true;\s*\/\/ routine_templates are executable by default|routine_templates are executable by default/);
+assert.match(page, /step\.keyPoints \?\? step\.key_points \?\? step\.points/);
+assert.match(page, /step\.safetyNotes \?\? step\.safety_notes \?\? step\.cautions/);
+assert.match(page, /rawStep: clonePlainData\(step\)/);
 
 console.log("timer contract v1 tests passed");
