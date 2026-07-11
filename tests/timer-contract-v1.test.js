@@ -24,5 +24,11 @@ assert.match(page, /return true;\s*\/\/ routine_templates are executable by defa
 assert.match(page, /step\.keyPoints \?\? step\.key_points \?\? step\.points/);
 assert.match(page, /step\.safetyNotes \?\? step\.safety_notes \?\? step\.cautions/);
 assert.match(page, /rawStep: clonePlainData\(step\)/);
+assert.match(page, /ROUTINE_CATALOG_CACHE_KEY = "home-training-timer:routine-catalog-cache:v2"/);
+assert.match(page, /function hasExecutableRoutineDefinition\(/);
+assert.match(page, /schema: "timer-routine-cache\/v2"/);
+assert.match(page, /payload\.schema !== "timer-routine-cache\/v2"/);
+assert.match(page, /当前流程没有可执行动作/);
+assert.match(page, /type: "shenke\.timer\.ready"/);
 
 console.log("timer contract v1 tests passed");
