@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="训练计时器">
   <link rel="manifest" href="./manifest.webmanifest">
+  <script src="./timer-session-core.js"></script>
   <script>
     try {
       const params = new URLSearchParams(window.location.search);
@@ -651,11 +652,16 @@
       box-shadow: none;
     }
 
-    .plan-note b {
+    .plan-note b,
+    .plan-note strong {
       display: block;
       margin-bottom: 6px;
       color: var(--ink);
       font-size: 15px;
+    }
+
+    .plan-note span {
+      white-space: pre-line;
     }
 
     .queue h2 {
@@ -1405,6 +1411,20 @@
   </div>
 
   <script>
+    const TimerSessionCore = window.HomeTrainingTimerSessionCore || {
+      activeSecondsAfterTick(previousSeconds, deltaSeconds) {
+        return Math.max(0, Number(previousSeconds) || 0) + Math.max(0, Number(deltaSeconds) || 0);
+      },
+      finalizeTiming(session, activeSeconds, endedAt) {
+        const startedAt = Date.parse(session?.startedAt || "");
+        const ended = Date.parse(endedAt || "");
+        const elapsedSeconds = Number.isFinite(startedAt) && Number.isFinite(ended)
+          ? Math.max(0, Math.round((ended - startedAt) / 1000))
+          : 0;
+        const actualSeconds = Math.min(elapsedSeconds, Math.max(0, Math.round(Number(activeSeconds) || 0)));
+        return { actualSeconds, elapsedSeconds, pausedSeconds: Math.max(0, elapsedSeconds - actualSeconds) };
+      }
+    };
     const actionInfo = {
       slowWalk: {
         name: "原地慢走",
@@ -3293,6 +3313,10 @@
     }
 
     function rebuild(resetIndex = true) {
+      if (resetIndex && state.session?.completion === "in_progress") {
+        completeTimerSession("stopped");
+        pause();
+      }
       updateConditionControls();
       state.steps = makeSteps();
       state.previewIndex = null;
@@ -3340,15 +3364,15 @@
       if (previewNext) {
         el.stepName.textContent = `休息：准备 ${next.name}`;
         el.stepDose.textContent = `下一项 ${next.phase} · ${next.dose}`;
-        el.cues.innerHTML = next.cues.map(x => `<li>${x}</li>`).join("");
-        el.warnings.innerHTML = next.warnings.map(x => `<li>${x}</li>`).join("");
+        renderTextList(el.cues, next.cues);
+        renderTextList(el.warnings, next.warnings);
         el.breath.textContent = `先调整呼吸。下一项：${next.breath.replace(/^呼吸：/, "")}`;
         el.next.textContent = `休息结束后：${next.phase} · ${next.name}`;
       } else {
         el.stepName.textContent = step.name;
         el.stepDose.textContent = step.dose;
-        el.cues.innerHTML = step.cues.map(x => `<li>${x}</li>`).join("");
-        el.warnings.innerHTML = step.warnings.map(x => `<li>${x}</li>`).join("");
+        renderTextList(el.cues, step.cues);
+        renderTextList(el.warnings, step.warnings);
         el.breath.textContent = step.breath;
         el.next.textContent = next ? `下一项：${next.phase} · ${next.name}` : "下一项：暂无";
       }
@@ -3358,6 +3382,15 @@
       renderQueue();
       updateStartButton();
       updateSummary();
+    }
+
+    function renderTextList(element, values) {
+      element.replaceChildren();
+      (Array.isArray(values) ? values : []).forEach(value => {
+        const item = document.createElement("li");
+        item.textContent = String(value || "");
+        element.appendChild(item);
+      });
     }
 
     function renderQueue() {
@@ -3466,11 +3499,11 @@
       el.totalTime.textContent = `${Math.round(seconds / 60)} 分`;
       el.workCount.textContent = `${actions} 项`;
       if (state.routineError) {
-        el.planNote.innerHTML = `<b>流程读取失败</b>${state.routineError}`;
+        renderPlanNote("流程读取失败", [state.routineError]);
         return;
       }
       if (state.routineLoading) {
-        el.planNote.innerHTML = `<b>正在读取流程</b>正在从身刻云数据库读取 routine_templates。`;
+        renderPlanNote("正在读取流程", ["正在从身刻云数据库读取 routine_templates。"]);
         return;
       }
       const note = presetNotes[el.preset.value] || presetNotes.strength;
@@ -3483,7 +3516,18 @@
       if (el.preset.value === "travel" || trainingType === "travel_strength") {
         extras.push(el.hasBand.checked ? "外出训练将使用弹力带划船；短带侧步小腿紧时可跳过。" : "未带弹力带：已替换为不依赖器具的胸背动作。");
       }
-      el.planNote.innerHTML = `<b>${note.title}</b>${note.text}${extras.length ? `<br><br>${extras.join(" ")}` : ""}`;
+      renderPlanNote(note.title, [note.text, ...extras]);
+    }
+
+    function renderPlanNote(title, paragraphs) {
+      const heading = document.createElement("strong");
+      heading.textContent = String(title || "");
+      const content = document.createElement("span");
+      content.textContent = (Array.isArray(paragraphs) ? paragraphs : [])
+        .filter(Boolean)
+        .map(value => String(value))
+        .join("\n\n");
+      el.planNote.replaceChildren(heading, content);
     }
 
     function updateStartButton() {
@@ -3630,6 +3674,9 @@
         updatedAt: startedAt,
         plannedSeconds,
         actualSeconds: 0,
+        activeSeconds: 0,
+        elapsedSeconds: 0,
+        pausedSeconds: 0,
         completion: "in_progress",
         options: {
           restSeconds: Number(el.rest.value),
@@ -3644,6 +3691,7 @@
         notes: "",
         cloudState: "local"
       };
+      saveTimerSession(state.session);
       return state.session;
     }
 
@@ -3714,15 +3762,25 @@
       if (window.opener) window.opener.postMessage(message, targetOrigin);
     }
 
+    function accumulateActiveTimerDuration(now = Date.now()) {
+      if (!state.running || !state.session || state.session.completion !== "in_progress") return 0;
+      const lastTick = Number(state.lastTick) || now;
+      const delta = Math.max(0, (now - lastTick) / 1000);
+      state.lastTick = now;
+      state.session.activeSeconds = TimerSessionCore.activeSecondsAfterTick(state.session.activeSeconds, delta);
+      return delta;
+    }
+
     function completeTimerSession(completion = "completed") {
       if (!state.session || state.session.completion !== "in_progress") return;
       const endedAt = new Date();
-      const startedAt = Date.parse(state.session.startedAt);
+      accumulateActiveTimerDuration(endedAt.getTime());
+      const timing = TimerSessionCore.finalizeTiming(state.session, state.session.activeSeconds, endedAt.toISOString());
       state.session = {
         ...state.session,
         endedAt: endedAt.toISOString(),
         updatedAt: endedAt.toISOString(),
-        actualSeconds: Number.isFinite(startedAt) ? Math.max(0, Math.round((endedAt.getTime() - startedAt) / 1000)) : 0,
+        ...timing,
         completion,
         stepResults: buildStepResults(completion === "completed"),
         cloudState: "pending"
@@ -3730,6 +3788,7 @@
       saveTimerSession(state.session);
       emitTimerSession(state.session);
       sendTimerSessionToCloud(state.session);
+      return state.session;
     }
 
     function start() {
@@ -3747,6 +3806,7 @@
     }
 
     function pause() {
+      accumulateActiveTimerDuration();
       state.running = false;
       if (state.timer) window.clearInterval(state.timer);
       state.timer = null;
@@ -3760,8 +3820,7 @@
 
     function tick() {
       const now = Date.now();
-      const delta = (now - state.lastTick) / 1000;
-      state.lastTick = now;
+      const delta = accumulateActiveTimerDuration(now);
       state.remaining -= delta;
       if (state.remaining <= 3 && state.remaining + delta > 3) beep(620, 0.06);
       if (state.remaining <= 2 && state.remaining + delta > 2) beep(620, 0.06);
@@ -3805,10 +3864,12 @@
 
     function resetAll() {
       clearStepPreview();
+      if (state.session?.completion === "in_progress") completeTimerSession("stopped");
+      pause();
       state.index = 0;
       state.remaining = state.steps[0].seconds;
       state.started = false;
-      pause();
+      state.session = null;
       render();
     }
 
@@ -4019,6 +4080,13 @@
       if (!data || typeof data !== "object") return;
       if (data.type === "shenke.timer.config" || data.type === "shenke.timerConfig") {
         acceptHostCloudConfig(data, event.origin);
+      }
+    });
+
+    window.addEventListener("pagehide", () => {
+      if (state.session?.completion === "in_progress") {
+        completeTimerSession("stopped");
+        pause();
       }
     });
 

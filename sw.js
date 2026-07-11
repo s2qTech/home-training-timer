@@ -1,7 +1,8 @@
-const CACHE_NAME = "home-strength-timer-v27-routine-menu";
+const CACHE_NAME = "home-strength-timer-v28-session-facts";
 const ASSETS = [
   "./",
   "./index.html",
+  "./timer-session-core.js",
   "./manifest.webmanifest",
   "./timer-icon.svg"
 ];
