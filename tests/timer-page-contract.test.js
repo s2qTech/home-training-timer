@@ -9,6 +9,8 @@ const inlineScripts = Array.from(page.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\
 const appScript = inlineScripts.at(-1)?.[1] || "";
 
 assert.match(page, /<script src="\.\/timer-session-core\.js"><\/script>/);
+assert.match(page, /<script src="\.\/timer-execution-core\.js"><\/script>/);
+assert.match(page, /TimerExecutionCore\.expandAction/);
 assert.doesNotMatch(page, /el\.(cues|warnings|planNote)\.innerHTML\s*=/);
 assert.match(page, /function renderTextList\(/);
 assert.match(page, /function renderPlanNote\(/);

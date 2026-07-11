@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="训练计时器">
   <link rel="manifest" href="./manifest.webmanifest">
+  <script src="./timer-execution-core.js"></script>
   <script src="./timer-session-core.js"></script>
   <script>
     try {
@@ -3005,72 +3006,17 @@
 
     function expandCatalogItem(item) {
       const info = item[4] || {};
-      const execution = normalizeStepExecution(info.execution);
-      if (!execution || execution.mode === "simple") return [toStep(item)];
-
-      if (execution.mode === "prepare_only" || execution.mode === "alternating") {
-        const steps = [];
-        if (execution.prepareSeconds > 0) steps.push(makeExecutionStep(item, {
-          keySuffix: "prepare",
-          phase: "准备",
-          name: baseStepName(item),
-          seconds: execution.prepareSeconds,
-          dose: "摆好姿势，准备开始。",
-          executionPart: "prepare",
-          speechText: `准备，${baseStepName(item)}`
-        }));
-        steps.push(toStep(item));
-        return steps;
-      }
-
-      if (execution.mode === "bilateral_hold" || execution.mode === "bilateral_reps") {
-        const left = execution.sides[0] || "左侧";
-        const right = execution.sides[1] || "右侧";
-        const sideSeconds = execution.sideSeconds || Math.max(1, Math.round(Number(item[1] || 0) / 2));
-        const steps = [];
-        if (execution.prepareSeconds > 0) steps.push(makeExecutionStep(item, {
-          keySuffix: "prepare",
-          phase: "准备",
-          name: baseStepName(item),
-          seconds: execution.prepareSeconds,
-          dose: "摆好姿势，准备开始。",
-          executionPart: "prepare",
-          speechText: `准备，${baseStepName(item)}`
-        }));
-        steps.push(makeExecutionStep(item, {
-          keySuffix: "left",
-          phase: left,
-          name: baseStepName(item),
-          seconds: sideSeconds,
-          dose: item[3] || `保持 ${formatDuration(sideSeconds)}`,
-          executionPart: "side",
-          side: left,
-          speechText: `${left}，${baseStepName(item)}`
-        }));
-        if (execution.switchSeconds > 0) steps.push(makeExecutionStep(item, {
-          keySuffix: "switch",
-          phase: "换侧",
-          name: `换${right}`,
-          seconds: execution.switchSeconds,
-          dose: `换到${right}，准备下一侧。`,
-          executionPart: "switch",
-          side: right,
-          speechText: `换${right}`
-        }));
-        steps.push(makeExecutionStep(item, {
-          keySuffix: "right",
-          phase: right,
-          name: baseStepName(item),
-          seconds: sideSeconds,
-          dose: item[3] || `保持 ${formatDuration(sideSeconds)}`,
-          executionPart: "side",
-          side: right,
-          speechText: `${right}，${baseStepName(item)}`
-        }));
-        return steps;
-      }
-
-      return [toStep(item)];
+      const parts = TimerExecutionCore.expandAction({
+        stepId: getSourceStepId(item),
+        name: baseStepName(item),
+        seconds: item[1],
+        dose: item[3],
+        execution: info.execution
+      });
+      return parts.map((part) => {
+        if (!part.executionPart) return toStep(item);
+        return makeExecutionStep(item, part);
+      });
     }
 
     function makeExecutionStep(item, overrides) {
