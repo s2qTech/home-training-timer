@@ -14,6 +14,9 @@ assert.match(page, /function renderTextList\(/);
 assert.match(page, /function renderPlanNote\(/);
 assert.match(page, /completeTimerSession\("stopped"\)/);
 assert.match(page, /window\.addEventListener\("pagehide"/);
+assert.match(page, /function recoverInterruptedTimerSessions\(/);
+assert.match(page, /TIMER_SESSION_HEARTBEAT_MS = 15000/);
+assert.match(page, /recoverInterruptedTimerSessions\(\);/);
 assert.doesNotThrow(() => new Function(appScript));
 
 console.log("timer page contract tests passed");

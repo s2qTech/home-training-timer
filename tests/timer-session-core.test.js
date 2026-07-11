@@ -28,4 +28,28 @@ assert.deepEqual(malformed, {
   pausedSeconds: 0
 });
 
+const recovered = core.recoverInterruptedSession({
+  id: "session_interrupted",
+  startedAt: "2026-07-11T10:00:00.000Z",
+  lastActiveAt: "2026-07-11T10:01:30.000Z",
+  activeSeconds: 87,
+  completion: "in_progress",
+  cloudState: "local"
+});
+assert.deepEqual(recovered, {
+  id: "session_interrupted",
+  startedAt: "2026-07-11T10:00:00.000Z",
+  lastActiveAt: "2026-07-11T10:01:30.000Z",
+  activeSeconds: 87,
+  completion: "stopped",
+  cloudState: "pending",
+  actualSeconds: 87,
+  elapsedSeconds: 90,
+  pausedSeconds: 3,
+  endedAt: "2026-07-11T10:01:30.000Z",
+  updatedAt: "2026-07-11T10:01:30.000Z",
+  interruptionReason: "recovered_after_unexpected_exit"
+});
+assert.equal(core.recoverInterruptedSession({ completion: "completed" }), null);
+
 console.log("timer-session-core tests passed");

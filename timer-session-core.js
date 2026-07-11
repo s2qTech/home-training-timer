@@ -32,9 +32,29 @@
     };
   }
 
+  function recoverInterruptedSession(session, endedAt) {
+    if (!session || session.completion !== "in_progress") return null;
+    const recoveryEndedAt = endedAt || session.lastActiveAt || session.updatedAt || session.startedAt;
+    const timing = finalizeTiming(
+      session,
+      session.activeSeconds ?? session.actualSeconds,
+      recoveryEndedAt
+    );
+    return {
+      ...session,
+      ...timing,
+      endedAt: recoveryEndedAt,
+      updatedAt: recoveryEndedAt,
+      completion: "stopped",
+      interruptionReason: "recovered_after_unexpected_exit",
+      cloudState: "pending"
+    };
+  }
+
   return {
     activeSecondsAfterTick,
     elapsedSecondsBetween,
-    finalizeTiming
+    finalizeTiming,
+    recoverInterruptedSession
   };
 });

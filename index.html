@@ -2157,6 +2157,7 @@
     const ROUTINE_CATALOG_CACHE_KEY = "home-training-timer:routine-catalog-cache:v1";
     const SHENK_SYNC_CONFIG_STORAGE_KEY = "training-assistant-v2:sync-config";
     const TIMER_DEVICE_STORAGE_KEY = "home-training-timer:device-id:v1";
+    const TIMER_SESSION_HEARTBEAT_MS = 15000;
     const DYNAMIC_ROUTINE_PRESET_PREFIX = "cloud:";
     const TRAINING_TYPE_ALIASES = {
       easyWalk: "easy_walk",
@@ -2198,6 +2199,7 @@
       started: false,
       scene: "home",
       lastTick: 0,
+      lastSessionPersistedAt: 0,
       wakeLock: null,
       launch: parseLaunchParams(),
       session: null,
@@ -2907,6 +2909,14 @@
       for (const session of pending) {
         await sendTimerSessionToCloud(session);
       }
+    }
+
+    function recoverInterruptedTimerSessions() {
+      const recovered = getStoredTimerSessions()
+        .map(session => TimerSessionCore.recoverInterruptedSession(session))
+        .filter(Boolean);
+      recovered.forEach(saveTimerSession);
+      return recovered;
     }
 
     function updateSceneButtons() {
@@ -3672,6 +3682,7 @@
         endedAt: null,
         createdAt: startedAt,
         updatedAt: startedAt,
+        lastActiveAt: startedAt,
         plannedSeconds,
         actualSeconds: 0,
         activeSeconds: 0,
@@ -3692,6 +3703,7 @@
         cloudState: "local"
       };
       saveTimerSession(state.session);
+      state.lastSessionPersistedAt = Date.now();
       return state.session;
     }
 
@@ -3768,7 +3780,16 @@
       const delta = Math.max(0, (now - lastTick) / 1000);
       state.lastTick = now;
       state.session.activeSeconds = TimerSessionCore.activeSecondsAfterTick(state.session.activeSeconds, delta);
+      state.session.lastActiveAt = new Date(now).toISOString();
       return delta;
+    }
+
+    function persistActiveTimerSession(now = Date.now(), force = false) {
+      if (!state.session || state.session.completion !== "in_progress") return;
+      if (!force && now - state.lastSessionPersistedAt < TIMER_SESSION_HEARTBEAT_MS) return;
+      state.session.updatedAt = new Date(now).toISOString();
+      saveTimerSession(state.session);
+      state.lastSessionPersistedAt = now;
     }
 
     function completeTimerSession(completion = "completed") {
@@ -3786,6 +3807,7 @@
         cloudState: "pending"
       };
       saveTimerSession(state.session);
+      state.lastSessionPersistedAt = endedAt.getTime();
       emitTimerSession(state.session);
       sendTimerSessionToCloud(state.session);
       return state.session;
@@ -3807,6 +3829,7 @@
 
     function pause() {
       accumulateActiveTimerDuration();
+      persistActiveTimerSession(Date.now(), true);
       state.running = false;
       if (state.timer) window.clearInterval(state.timer);
       state.timer = null;
@@ -3821,6 +3844,7 @@
     function tick() {
       const now = Date.now();
       const delta = accumulateActiveTimerDuration(now);
+      persistActiveTimerSession(now);
       state.remaining -= delta;
       if (state.remaining <= 3 && state.remaining + delta > 3) beep(620, 0.06);
       if (state.remaining <= 2 && state.remaining + delta > 2) beep(620, 0.06);
@@ -4067,6 +4091,8 @@
       if (state.launch.cloudApiBase) {
         saveCloudConfig({ apiBase: state.launch.cloudApiBase, token: state.cloudConfig.token });
       }
+      recoverInterruptedTimerSessions();
+      retryPendingCloudSessions();
       await loadCloudRoutineCatalog();
       await loadLaunchRoutineIfNeeded();
       applyLaunchParams();
