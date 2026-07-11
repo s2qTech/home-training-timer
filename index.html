@@ -1412,6 +1412,19 @@
   </div>
 
   <script>
+    const TimerExecutionCore = window.HomeTrainingTimerExecutionCore || {
+      expandAction(input) {
+        return [{
+          keySuffix: "action",
+          seconds: Math.max(1, Math.round(Number(input?.seconds) || 1)),
+          name: String(input?.name || input?.stepId || "动作"),
+          dose: String(input?.dose || ""),
+          executionPart: null,
+          side: null,
+          speechText: ""
+        }];
+      }
+    };
     const TimerSessionCore = window.HomeTrainingTimerSessionCore || {
       activeSecondsAfterTick(previousSeconds, deltaSeconds) {
         return Math.max(0, Number(previousSeconds) || 0) + Math.max(0, Number(deltaSeconds) || 0);
