@@ -1,0 +1,16 @@
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+*.local
+data/
+exports/
+screenshots/
+*.zip
+node_modules/
+dist/
+.vite/
+.wrangler/
+.agents/
+.codex/

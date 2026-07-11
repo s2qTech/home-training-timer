@@ -2157,6 +2157,7 @@
     const ROUTINE_CATALOG_CACHE_KEY = "home-training-timer:routine-catalog-cache:v1";
     const SHENK_SYNC_CONFIG_STORAGE_KEY = "training-assistant-v2:sync-config";
     const TIMER_DEVICE_STORAGE_KEY = "home-training-timer:device-id:v1";
+    const SHENKE_CONTRACT_VERSION = "1.0";
     const TIMER_SESSION_HEARTBEAT_MS = 15000;
     const DYNAMIC_ROUTINE_PRESET_PREFIX = "cloud:";
     const TRAINING_TYPE_ALIASES = {
@@ -2314,10 +2315,13 @@
         "X-Shenke-Device-Id": getTimerDeviceId()
       };
       if (options.auth !== false) headers.Authorization = `Bearer ${state.cloudConfig.token}`;
+      const requestBody = options.body
+        ? { ...options.body, contractVersion: options.body.contractVersion || SHENKE_CONTRACT_VERSION }
+        : undefined;
       const response = await fetch(`${apiBase}${path}`, {
         method: options.method || "POST",
         headers,
-        body: options.body ? JSON.stringify(options.body) : undefined
+        body: requestBody ? JSON.stringify(requestBody) : undefined
       });
       const text = await response.text();
       let payload = null;
@@ -2448,10 +2452,18 @@
       if (!state.cloudConfig.apiBase || !state.cloudConfig.token) {
         throw new Error("计时器没有云数据库配置，无法读取流程。");
       }
-      const result = await cloudRequest("/records/query", {
-        body: { entities: ["routine_templates"] }
-      });
-      const records = Array.isArray(result.records) ? result.records : [];
+      const records = [];
+      let cursor = null;
+      let pageCount = 0;
+      do {
+        const result = await cloudRequest("/records/query", {
+          body: { entities: ["routine_templates"], limit: 200, cursor }
+        });
+        records.push(...(Array.isArray(result.records) ? result.records : []));
+        cursor = result.nextCursor || null;
+        pageCount += 1;
+        if (pageCount > 100 && cursor) throw new Error("云端流程过多，请稍后重试。");
+      } while (cursor);
       return records
         .filter(record => !record.deletedAt)
         .map(record => {
@@ -3662,6 +3674,7 @@
       const startedAt = new Date().toISOString();
       state.session = {
         id: makeTimerSessionId(),
+        contractVersion: SHENKE_CONTRACT_VERSION,
         schemaVersion: "timer-session/v1",
         deviceId: getTimerDeviceId(),
         source: state.launch.source || "standalone",

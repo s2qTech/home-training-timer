@@ -25,7 +25,7 @@ It does not own:
 
 ## Shared Contract
 
-Canonical contracts live in the 身刻 repository:
+Canonical contracts live in the 身刻 repository. This repository keeps an identical, versioned test mirror at `contracts/v1/` so its offline test suite can verify compatibility:
 
 - `docs/data-contract.md`
 - `docs/development-constraints.md`
