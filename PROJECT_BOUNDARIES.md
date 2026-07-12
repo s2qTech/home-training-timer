@@ -60,6 +60,18 @@ The UI must:
 - allow action guidance to be inspected before starting;
 - keep selection/preview state separate from active execution state.
 
+## Module Boundaries
+
+The page shell owns DOM, audio, wake lock, and event wiring. Reusable pure cores are
+documented in `MODULE_BOUNDARIES.md`:
+
+- `timer-execution-core.js` expands execution details;
+- `timer-preview-core.js` groups expanded steps as one visible action;
+- `timer-session-core.js` owns duration and interruption calculations.
+
+The catalog loader must preserve template-provided `scene` and must not infer or
+rewrite routine metadata during normal loading.
+
 ## Next Priorities
 
 1. Add deterministic tests for execution expansion and timer state transitions.

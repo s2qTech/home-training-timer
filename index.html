@@ -9,6 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="训练计时器">
   <link rel="manifest" href="./manifest.webmanifest">
   <script src="./timer-execution-core.js"></script>
+  <script src="./timer-preview-core.js"></script>
   <script src="./timer-session-core.js"></script>
   <script>
     try {
@@ -1438,6 +1439,10 @@
         const actualSeconds = Math.min(elapsedSeconds, Math.max(0, Math.round(Number(activeSeconds) || 0)));
         return { actualSeconds, elapsedSeconds, pausedSeconds: Math.max(0, elapsedSeconds - actualSeconds) };
       }
+    };
+    const TimerPreviewCore = window.HomeTrainingTimerPreviewCore || {
+      buildStepGroups() { return []; },
+      getActionProgress() { return { current: 1, total: 1 }; }
     };
     const actionInfo = {
       slowWalk: {
@@ -3525,60 +3530,11 @@
     }
 
     function buildStepGroups() {
-      const groups = [];
-      let current = null;
-      let actionNumber = 0;
-      state.steps.forEach((step, index) => {
-        if (step.key === "finish") return;
-        const isRest = step.key === "rest";
-        const joinKey = isRest ? `rest:${index}` : `${step.round || ""}:${step.sourceStepId || step.key}`;
-        const canJoin = current
-          && current.type === "action"
-          && !isRest
-          && current.joinKey === joinKey
-          && (current.hasExecution || step.executionPart);
-        if (!canJoin) {
-          if (!isRest) actionNumber += 1;
-          current = {
-            type: isRest ? "rest" : "action",
-            actionNumber: isRest ? null : actionNumber,
-            joinKey,
-            startIndex: index,
-            endIndex: index,
-            seconds: 0,
-            steps: [],
-            previewIndex: null,
-            hasExecution: Boolean(step.executionPart),
-            phase: step.actionPhase || step.phase,
-            name: step.name,
-            round: step.round || null
-          };
-          groups.push(current);
-        }
-        current.steps.push(step);
-        current.endIndex = index;
-        current.seconds += step.seconds;
-        current.hasExecution = current.hasExecution || Boolean(step.executionPart);
-        if (!["prepare", "switch"].includes(step.executionPart)) {
-          if (current.previewIndex === null) current.previewIndex = index;
-          current.phase = step.actionPhase || step.phase;
-          current.name = step.name;
-        }
-      });
-      groups.forEach(group => {
-        if (group.previewIndex === null) group.previewIndex = group.startIndex;
-      });
-      return groups;
+      return TimerPreviewCore.buildStepGroups(state.steps);
     }
 
     function getActionProgress(index = state.index) {
-      const groups = buildStepGroups();
-      const actions = groups.filter(group => group.type === "action");
-      const total = Math.max(1, actions.length);
-      const active = groups.find(group => group.startIndex <= index && index <= group.endIndex);
-      if (active?.type === "action") return { current: active.actionNumber, total };
-      const completed = actions.filter(group => group.endIndex < index).length;
-      return { current: Math.min(total, Math.max(1, completed || 1)), total };
+      return TimerPreviewCore.getActionProgress(state.steps, index);
     }
 
     function formatExecutionGroupDetail(group) {

@@ -10,8 +10,12 @@ const appScript = inlineScripts.at(-1)?.[1] || "";
 
 assert.match(page, /<script src="\.\/timer-session-core\.js"><\/script>/);
 assert.match(page, /<script src="\.\/timer-execution-core\.js"><\/script>/);
+assert.match(page, /<script src="\.\/timer-preview-core\.js"><\/script>/);
 assert.match(page, /const TimerExecutionCore = window\.HomeTrainingTimerExecutionCore \|\|/);
 assert.match(page, /TimerExecutionCore\.expandAction/);
+assert.match(page, /const TimerPreviewCore = window\.HomeTrainingTimerPreviewCore \|\|/);
+assert.match(page, /TimerPreviewCore\.buildStepGroups\(state\.steps\)/);
+assert.match(page, /TimerPreviewCore\.getActionProgress\(state\.steps, index\)/);
 assert.doesNotMatch(page, /el\.(cues|warnings|planNote)\.innerHTML\s*=/);
 assert.match(page, /function renderTextList\(/);
 assert.match(page, /function renderPlanNote\(/);
