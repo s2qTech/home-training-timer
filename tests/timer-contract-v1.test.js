@@ -32,6 +32,7 @@ assert.match(page, /function applyUnavailableRoutineCatalog\(/);
 assert.match(page, /function normalizeRoutineLifecycle\(/);
 assert.match(page, /function inferRoutineTrainingType\(/);
 assert.match(page, /function inferRoutineScene\(/);
+assert.match(page, /座位\|外出\|旅行\|酒店/);
 assert.match(page, /function clearRoutineCatalogCache\(/);
 assert.match(page, /云端暂无可执行的训练方案/);
 assert.match(page, /当前流程没有可执行动作/);
