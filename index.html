@@ -2371,7 +2371,11 @@
       renderCloudConfig("正在读取云端训练方案...");
       try {
         const definitions = await fetchRoutineTemplateDefinitions();
-        if (!definitions.length) throw new Error("云端没有可执行的训练方案。");
+        if (!definitions.length) {
+          clearRoutineCatalogCache();
+          applyUnavailableRoutineCatalog("云端暂无可执行的训练方案。请在身刻导入并确认新的计划草案。");
+          return false;
+        }
         const stats = applyRoutineCatalogDefinitions(definitions, "cloud");
         saveRoutineCatalogCache(definitions);
         if (state.launch.routineId && externalRoutineMap[state.launch.routineId]) {
@@ -2630,6 +2634,14 @@
         return executableDefinitions;
       } catch (error) {
         return [];
+      }
+    }
+
+    function clearRoutineCatalogCache() {
+      try {
+        window.localStorage.removeItem(ROUTINE_CATALOG_CACHE_KEY);
+      } catch (error) {
+        // A stale cache must never block an explicit cloud-empty response.
       }
     }
 
