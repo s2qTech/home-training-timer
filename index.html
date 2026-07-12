@@ -2726,14 +2726,15 @@
       const rawSteps = Array.isArray(template.steps) ? template.steps : parseJsonArray(template.stepsJson || template.steps_json);
       const steps = rawSteps.map(templateStepToCatalogItem).filter(Boolean);
       if (!steps.length) throw new Error(`云端流程没有可执行步骤：${routineId}`);
-      const trainingType = normalizeTrainingType(template.trainingType || template.training_type || template.type);
+      const sourceTitle = template.title || template.name || template.displayName || template.display_name || "";
+      const trainingType = inferRoutineTrainingType(template.trainingType || template.training_type || template.type, sourceTitle, routineId);
       const options = parseJsonObject(template.defaultOptions || template.default_options || template.defaultOptionsJson || template.default_options_json);
       return {
         routineId,
         routineVersion: template.version || template.routineVersion || template.routine_version || "",
         displayName: cleanRoutineTitle(template.title || template.name || routineId),
         displayVariant: cleanRoutineTitle(template.variant || template.routineVariant || template.routine_variant || ""),
-        scene: template.scene || sceneFromTrainingType(trainingType),
+        scene: inferRoutineScene(template.scene, trainingType, sourceTitle, routineId),
         trainingType,
         estimatedMinutes: Number(
           template.estimatedMinutes
@@ -2923,6 +2924,26 @@
       const raw = String(value || "").trim();
       const alias = TRAINING_TYPE_ALIASES[raw] || TRAINING_TYPE_ALIASES[raw.replace(/-/g, "_")];
       return alias || raw || "strength";
+    }
+
+    function inferRoutineTrainingType(value, title = "", routineId = "") {
+      const text = `${title} ${routineId}`.toLowerCase();
+      if (/热身/.test(text)) return "warmup";
+      if (/拉伸/.test(text) && !/恢复|低压/.test(text)) return "stretch";
+      if (/恢复|低压|座位/.test(text)) return "recovery";
+      if (/提高走|跑跳/.test(text)) return "quality_walk";
+      if (/普通走|健走|慢走/.test(text)) return "easy_walk";
+      return normalizeTrainingType(value);
+    }
+
+    function inferRoutineScene(value, trainingType, title = "", routineId = "") {
+      const text = `${title} ${routineId}`.toLowerCase();
+      if (/热身|拉伸|提高走|普通走|健走|慢走|公园/.test(text)) return "walk";
+      if (/恢复|低压|座位/.test(text)) return "recovery";
+      if (/外出|旅行|酒店/.test(text)) return "travel";
+      const scene = String(value || "").trim().toLowerCase();
+      if (["home", "walk", "recovery", "travel"].includes(scene)) return scene;
+      return sceneFromTrainingType(trainingType);
     }
 
     function sceneFromTrainingType(type) {

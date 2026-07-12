@@ -30,6 +30,8 @@ assert.match(page, /schema: "timer-routine-cache\/v3"/);
 assert.match(page, /payload\.schema !== "timer-routine-cache\/v3"/);
 assert.match(page, /function applyUnavailableRoutineCatalog\(/);
 assert.match(page, /function normalizeRoutineLifecycle\(/);
+assert.match(page, /function inferRoutineTrainingType\(/);
+assert.match(page, /function inferRoutineScene\(/);
 assert.match(page, /当前流程没有可执行动作/);
 assert.match(page, /type: "shenke\.timer\.ready"/);
 
