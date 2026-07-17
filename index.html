@@ -2745,13 +2745,26 @@
       if (!steps.length) throw new Error(`云端流程没有可执行步骤：${routineId}`);
       const sourceTitle = template.title || template.name || template.displayName || template.display_name || "";
       const trainingType = inferRoutineTrainingType(template.trainingType || template.training_type || template.type, sourceTitle, routineId);
+      const templateContractVersion = String(template.contractVersion || template.contract_version || "1.0");
+      const explicitScene = String(template.scene || "").trim();
+      const explicitRole = String(template.role || "").trim();
+      if (templateContractVersion === "2.0") {
+        if (!["home", "walk", "recovery", "travel"].includes(explicitScene)) {
+          throw new Error(`Contract v2 流程缺少有效 scene：${routineId}`);
+        }
+        if (!["main", "warmup", "stretch", "cooldown", "recovery", "auxiliary"].includes(explicitRole)) {
+          throw new Error(`Contract v2 流程缺少有效 role：${routineId}`);
+        }
+      }
       const options = parseJsonObject(template.defaultOptions || template.default_options || template.defaultOptionsJson || template.default_options_json);
       return {
         routineId,
         routineVersion: template.version || template.routineVersion || template.routine_version || "",
         displayName: cleanRoutineTitle(template.title || template.name || routineId),
         displayVariant: cleanRoutineTitle(template.variant || template.routineVariant || template.routine_variant || ""),
-        scene: inferRoutineScene(template.scene, trainingType, sourceTitle, routineId),
+        scene: explicitScene || inferRoutineScene(template.scene, trainingType, sourceTitle, routineId),
+        role: explicitRole,
+        contractVersion: templateContractVersion,
         trainingType,
         estimatedMinutes: Number(
           template.estimatedMinutes
@@ -2772,6 +2785,7 @@
         mode: "sequence",
         steps,
         defaultRestSeconds: Number(options.defaultRestSeconds || options.default_rest_seconds || template.defaultRestSeconds || 20) || 20,
+        rawTemplate: clonePlainData(template),
         source: "cloud"
       };
     }
